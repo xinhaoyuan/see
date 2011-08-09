@@ -1,0 +1,8 @@
+(with (display car cdr cons a b c) 
+      (set! display "display")
+      (set! car (lambda (x) (x (lambda (a b) a))))
+      (set! cdr (lambda (x) (x (lambda (a b) b))))
+      (set! cons (lambda (a b) (lambda (c) (c a b))))
+      (set! a (cons 1 2))
+      (display "HELLO WORLD")
+      (display (car a)) (display (cdr a)))

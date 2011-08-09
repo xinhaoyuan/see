@@ -1,0 +1,7 @@
+(with (car cdr cons display)
+	  (set! car 0)
+      (set! cdr 1)
+      (set! cons 2)
+      (set! display "display")
+      (call/cc display)
+	  (display (cons 1 2)))

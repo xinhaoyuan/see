@@ -1,0 +1,9 @@
+Version tag: 201108091920+8
+
+SEE (Simple Executing Engine) is a simple syntax/sematic parser and
+single-thread oriented interpreter for scheme-like language with your
+own extensions. SEE is originally written by Xinhao.Yuan (xinhaoyuan
+at gmail dot com).
+
+Copyright of this project is dedicated to the public domain, including
+the source codes and documents.
