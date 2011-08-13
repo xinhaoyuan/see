@@ -136,7 +136,6 @@ struct scope_ref_s
 #define EXP_TYPE_WITH    0x09
 #define EXP_TYPE_CALLCC  0x0a
 
-
 struct expression_s
 {
 	object_t handle;
