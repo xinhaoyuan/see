@@ -10,6 +10,8 @@
 #include "vm/io.h"
 #include "vm/vm.h"
 
+/* This source file shows the usage of SEE interfaces */
+
 struct simple_stream
 {
 	FILE *file;
@@ -69,7 +71,7 @@ int main(int argc, const char *args[])
 		expression_t e = expression_from_ast(heap, n);
 		object_t prog = continuation_from_expression(heap, e);
 				
-		struct execution_s ex;
+		execution_t ex = NULL;
 		object_t  ex_func;
 		int       ex_argc;
 		object_t *ex_args;
@@ -93,9 +95,9 @@ int main(int argc, const char *args[])
 					}
 					printf("\n");
 
-					ex.value = NULL;
+					ex->value = OBJECT_NULL;
 				}
-				else ex.value = NULL;
+				else ex->value = OBJECT_NULL;
 			}
 		}
 

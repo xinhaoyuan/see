@@ -7,7 +7,7 @@ T_BASE   = target
 
 SEE_OM  ?= naive-scan-sweep
 
-T_CC_FLAGS  ?= -O0 -g -Ilib -I_om_${SEE_OM}
+T_CC_FLAGS  ?= -O0 -g -Ilib -I_om_${SEE_OM} -I.
 
 SRCFILES:= $(shell find . '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g') \
 			$(shell find _om_${SEE_OM} -iname "*.c" | sed -e 's!\./!!g')

@@ -9,7 +9,7 @@
 #define AST_SYMBOL    1
 #define AST_APPLY     2
 #define AST_SET       3
-#define AST_COND        4
+#define AST_COND      4
 #define AST_LAMBDA    5
 #define AST_WITH      6
 #define AST_PROC      7

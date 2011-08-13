@@ -7,6 +7,8 @@
 #include "../as/symbol.h"
 #include "vm.h"
 
+/* The internal function numbers */
+
 #define FUNC_CAR     0
 #define FUNC_CDR     1
 #define FUNC_CONS    2
@@ -36,7 +38,7 @@ bsr(unsigned int n)
 			ex->stack_alloc <<= 1;										\
 			ex->stack = (object_t *)realloc(ex->stack, sizeof(object_t) * ex->stack_alloc); \
 		}																\
-		ex->stack[ex->stack_count - 1] = x;								\
+		ex->stack[ex->stack_count - 1] = (x);							\
 	}
 
 static int
@@ -44,147 +46,152 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 {
 	object_t  func = ex->stack[ex->stack_count - argc - 1];
 	object_t *args = &ex->stack[ex->stack_count - argc];
-	
-	if (is_object(func) && func != NULL)
+
+	unsigned int type = OBJECT_TYPE(func);
+	switch (type)
 	{
-		if (func->gc.type == OBJECT_CLOSURE)
-		{
-			object_t tail_vector = NULL;
-			object_t new_env = heap_object_new(heap);
-
-			new_env->environment.length = func->closure.argc;
-			new_env->environment.parent = func->closure.env;
+	case OBJECT_TYPE_CLOSURE:
+	{
+		object_t tail_vector = OBJECT_NULL;
+		object_t new_env = heap_object_new(heap);
+		
+		new_env->environment.length = func->closure.argc;
+		new_env->environment.parent = func->closure.env;
 			
-			if (new_env->environment.length > 0)
+		if (new_env->environment.length > 0)
+		{
+			/* Need to fill the new envonment */
+			new_env->environment.slot_entry = (slot_s *)malloc(sizeof(slot_s) * new_env->environment.length);
+			if (new_env->environment.length > argc)
 			{
-				/* Need to fill the new envonment */
-				new_env->environment.slot_entry = (slot_s *)malloc(sizeof(slot_s) * new_env->environment.length);
-				if (new_env->environment.length > argc)
+				/* Case 1: args not enough */
+				int i;
+				for (i = 0; i < new_env->environment.length; ++ i)
 				{
-					/* Case 1: args not enough */
-					int i;
-					for (i = 0; i < new_env->environment.length; ++ i)
-					{
-						if (i < argc)
-							SLOT_INIT(new_env->environment.slot_entry[i], args[i]);
-						else SLOT_INIT(new_env->environment.slot_entry[i], NULL);
-					}
-				}
-				else
-				{
-					/* Case 2: args may exceed, and would be passed in the tail vector */
-					int i;
-					for (i = 0; i < new_env->environment.length - 1; ++ i)
-					{
+					if (i < argc)
 						SLOT_INIT(new_env->environment.slot_entry[i], args[i]);
-					}
-
-					tail_vector = heap_object_new(heap);
-					tail_vector->vector.length     = argc - new_env->environment.length + 1;
-					tail_vector->vector.slot_entry = (slot_s *)malloc(sizeof(slot_s) * tail_vector->vector.length);
-
-					for (i = new_env->environment.length - 1; i < argc; ++ i)
-					{
-						SLOT_INIT(tail_vector->vector.slot_entry[i - new_env->environment.length + 1], args[i]);
-					}
-
-					SLOT_INIT(new_env->environment.slot_entry[new_env->environment.length - 1], tail_vector);
-					tail_vector->gc.type = OBJECT_VECTOR;
+					else SLOT_INIT(new_env->environment.slot_entry[i], OBJECT_NULL);
 				}
 			}
 			else
 			{
-				new_env->environment.slot_entry = NULL;
+				/* Case 2: args may exceed, and would be passed in the tail vector */
+				int i;
+				for (i = 0; i < new_env->environment.length - 1; ++ i)
+				{
+					SLOT_INIT(new_env->environment.slot_entry[i], args[i]);
+				}
+
+				tail_vector = heap_object_new(heap);
+				tail_vector->vector.length     = argc - new_env->environment.length + 1;
+				tail_vector->vector.slot_entry = (slot_s *)malloc(sizeof(slot_s) * tail_vector->vector.length);
+
+				for (i = new_env->environment.length - 1; i < argc; ++ i)
+				{
+					SLOT_INIT(tail_vector->vector.slot_entry[i - new_env->environment.length + 1], args[i]);
+				}
+
+				SLOT_INIT(new_env->environment.slot_entry[new_env->environment.length - 1], tail_vector);
+				OBJECT_TYPE_INIT(tail_vector, OBJECT_TYPE_VECTOR);
 			}
+		}
+		else
+		{
+			new_env->environment.slot_entry = NULL;
+		}
 
-			new_env->gc.type = OBJECT_ENVIRONMENT;
-			ex->stack_count -= argc + 1;
+		OBJECT_TYPE_INIT(new_env, OBJECT_TYPE_ENVIRONMENT);
+		ex->stack_count -= argc + 1;
 
-			if (!(ex->exp->parent->type == EXP_TYPE_APPLY ?
-				  ex->exp->parent->apply.tail :
-				  ex->exp->parent->callcc.tail))
-			{
-				TRY_PUSH(external_box(ex->exp->parent));
-				TRY_PUSH(ex->env);
-			}
+		if (!(ex->exp->parent->type == EXP_TYPE_APPLY ?
+			  ex->exp->parent->apply.tail :
+			  ex->exp->parent->callcc.tail))
+		{
+			TRY_PUSH(EXTERNAL_BOX(ex->exp->parent));
+			TRY_PUSH(ex->env);
+		}
 
-			ex->exp   = func->closure.exp;
-			ex->env = new_env;
+		ex->exp = func->closure.exp;
+		ex->env = new_env;
 			
-			heap_unprotect(heap, new_env);
+		heap_unprotect(heap, new_env);
 
-			if (tail_vector != NULL) heap_unprotect(heap, tail_vector);
+		if (tail_vector != OBJECT_NULL) heap_unprotect(heap, tail_vector);
+		ex->to_push = 0;
+	}
+	break;
+		
+	case OBJECT_TYPE_CONTINUATION:
+	{
+		if (argc == 0)
+		{
+			ex->value = OBJECT_NULL;
 			ex->to_push = 0;
 		}
-		else if (func->gc.type == OBJECT_CONTINUATION)
+		else if (argc >= 1)
 		{
-			if (argc == 0)
-			{
-				ex->value = NULL;
-				ex->to_push = 0;
-			}
-			else if (argc >= 1)
-			{
-				ex->value = args[argc - 1];
-				ex->to_push = 1;
-			}
-							
-			ex->exp   = func->continuation.exp;
-			ex->env = func->continuation.env;
-
-			ex->stack_count = func->continuation.stack_count;
-			
-			if (ex->stack_count <= 0)
-				ex->stack_alloc = 1;
-			else ex->stack_alloc  = 1 << (bsr(ex->stack_count) + 1);
-			
-			ex->stack = (object_t *)realloc(ex->stack, sizeof(object_t) * ex->stack_alloc);
-			memcpy(ex->stack, func->continuation.stack, sizeof(object_t) * ex->stack_count);
-		}
-		else if (func->gc.type == OBJECT_STRING)
-		{
-			*ex_func = func;
-			heap_protect_from_gc(heap, func);
-							
-			*ex_argc = argc;
-			*ex_args = (object_t *)malloc(sizeof(object_t) * argc);
-			
-			int i;
-			for (i = 0; i != argc; ++ i)
-			{
-				(*ex_args)[i] = args[i];
-				if (is_object(args[i]) &&
-					args[i] != NULL)
-					heap_protect_from_gc(heap, args[i]);
-			}
-
-			ex->exp = ex->exp->parent;
-			ex->stack_count -= argc + 1;
-			ex->value = NULL;
+			ex->value = args[argc - 1];
 			ex->to_push = 1;
-			
-			return 1;
 		}
-	}
-	else if (is_int(func))
-	{
-		switch (int_unbox(func))
-		{
+							
+		ex->exp   = func->continuation.exp;
+		ex->env = func->continuation.env;
 
+		ex->stack_count = func->continuation.stack_count;
+			
+		if (ex->stack_count <= 0)
+			ex->stack_alloc = 1;
+		else ex->stack_alloc  = 1 << (bsr(ex->stack_count) + 1);
+			
+		ex->stack = (object_t *)realloc(ex->stack, sizeof(object_t) * ex->stack_alloc);
+		memcpy(ex->stack, func->continuation.stack, sizeof(object_t) * ex->stack_count);
+	}
+	break;
+		
+	case OBJECT_TYPE_STRING:
+	{
+		*ex_func = func;
+		heap_protect_from_gc(heap, func);
+							
+		*ex_argc = argc;
+		*ex_args = (object_t *)malloc(sizeof(object_t) * argc);
+			
+		int i;
+		for (i = 0; i != argc; ++ i)
+		{
+			(*ex_args)[i] = args[i];
+			if (IS_OBJECT(args[i]))
+				heap_protect_from_gc(heap, args[i]);
+		}
+
+		ex->exp = ex->exp->parent;
+		ex->stack_count -= argc + 1;
+		ex->value = OBJECT_NULL;
+		ex->to_push = 1;
+			
+		return 1;
+	}
+	break;
+
+	case ENCODE_SUFFIX_INT:
+	{
+		switch (INT_UNBOX(func))
+		{
+			
 		case FUNC_CAR:
 		{
-			if (argc == 1 && is_object(args[0]) && args[0] && args[0]->gc.type == OBJECT_PAIR)
+			if (argc == 1 && OBJECT_TYPE(args[0]) == OBJECT_TYPE_PAIR)
 				ex->value = SLOT_GET(args[0]->pair.slot_car);
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 							
 			break;
 		}
 
 		case FUNC_CDR:
 		{
-			if (argc == 1 && is_object(args[0]) && args[0] && args[0]->gc.type == OBJECT_PAIR)
+			if (argc == 1 && OBJECT_TYPE(args[0]) == OBJECT_TYPE_PAIR)
 				ex->value = SLOT_GET(args[0]->pair.slot_cdr);
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 
 			break;
 		}
@@ -196,12 +203,12 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 				object_t r = heap_object_new(heap);
 				SLOT_SET(r->pair.slot_car, args[0]);
 				SLOT_SET(r->pair.slot_cdr, args[1]);
-				r->gc.type = OBJECT_PAIR;
+				OBJECT_TYPE_INIT(r, OBJECT_TYPE_PAIR);
 				
 				ex->value = r;
 				heap_unprotect(heap, r);
 			}
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 
 			break;
 		}
@@ -211,11 +218,11 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 			int i, r = 0;
 			for (i = 0; i != argc; ++ i)
 			{
-				if (is_int(args[i]))
-					r += int_unbox(args[i]);
+				if (IS_INT(args[i]))
+					r += INT_UNBOX(args[i]);
 			}
 
-			ex->value = int_box(r);
+			ex->value = INT_BOX(r);
 			break;
 		}
 
@@ -223,9 +230,9 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		{
 			if (argc == 2)
 			{
-				ex->value = int_box(int_unbox(args[0]) - int_unbox(args[1]));
+				ex->value = INT_BOX(INT_UNBOX(args[0]) - INT_UNBOX(args[1]));
 			}
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 			break;
 		}
 
@@ -233,9 +240,9 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		{
 			if (argc == 2)
 			{
-				ex->value = (args[0] == args[1]) ? int_box(0) : NULL;
+				ex->value = (args[0] == args[1]) ? INT_BOX(0) : OBJECT_NULL;
 			}
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 			break;
 		}
 
@@ -251,7 +258,7 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 			{
 				SLOT_INIT(v->vector.slot_entry[i], args[i]);
 			}
-			v->gc.type = OBJECT_VECTOR;
+			OBJECT_TYPE_INIT(v, OBJECT_TYPE_VECTOR);
 			ex->value = v;
 
 			heap_unprotect(heap, v);
@@ -260,43 +267,40 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 
 		case FUNC_VEC_LEN:
 		{
-			if (argc == 1 && is_object(args[0]) &&
-				args[0] != NULL && args[0]->gc.type == OBJECT_VECTOR)
+			if (argc == 1 && OBJECT_TYPE(args[0]) == OBJECT_TYPE_VECTOR)
 			{
-				ex->value = int_box(args[0]->vector.length);
+				ex->value = INT_BOX(args[0]->vector.length);
 			}
-			else ex->value = int_box(0);
+			else ex->value = INT_BOX(0);
 			break;
 		}
 
 		case FUNC_VEC_REF:
 		{
-			if (argc == 2 && is_object(args[0]) &&
-				args[0] != NULL && args[0]->gc.type == OBJECT_VECTOR &&
-				is_int(args[1]) && int_unbox(args[1]) < args[0]->vector.length)
+			if (argc == 2 && OBJECT_TYPE(args[0]) == OBJECT_TYPE_VECTOR &&
+				IS_INT(args[1]) && INT_UNBOX(args[1]) < args[0]->vector.length)
 			{
-				ex->value = SLOT_GET(args[0]->vector.slot_entry[int_unbox(args[1])]);
+				ex->value = SLOT_GET(args[0]->vector.slot_entry[INT_UNBOX(args[1])]);
 			}
-			else ex->value = NULL;
+			else ex->value = OBJECT_NULL;
 			break;
 		}
 
 		case FUNC_VEC_SET:
 		{
-			if (argc == 3 && is_object(args[0]) &&
-				args[0] != NULL && args[0]->gc.type == OBJECT_VECTOR &&
-				is_int(args[1]) && int_unbox(args[1]) < args[0]->vector.length)
+			if (argc == 3 && OBJECT_TYPE(args[0]) == OBJECT_TYPE_VECTOR &&
+				IS_INT(args[1]) && INT_UNBOX(args[1]) < args[0]->vector.length)
 			{
-				SLOT_SET(args[0]->vector.slot_entry[int_unbox(args[1])], args[2]);
+				SLOT_SET(args[0]->vector.slot_entry[INT_UNBOX(args[1])], args[2]);
 			}
 
-			ex->value = NULL;
+			ex->value = OBJECT_NULL;
 			break;
 		}
 
 		default:
 		{
-			ex->value = NULL;
+			ex->value = OBJECT_NULL;
 			break;
 		}
 
@@ -306,63 +310,65 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		ex->exp = ex->exp->parent;
 		ex->stack_count -= argc + 1;
 	}
-	else
+	break;
+
+	default:
 	{
-		ex->value = NULL;
+		ex->value = OBJECT_NULL;
 
 		ex->to_push = 1;
 		ex->exp = ex->exp->parent;
 		ex->stack_count -= argc + 1;
+
+		break;
+	}
 	}
 
 	return 0;
 }
 
 int 
-vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, execution_t ex, object_t *ex_func, int *ex_argc, object_t **ex_args)
+vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, execution_t *execution, object_t *ex_func, int *ex_argc, object_t **ex_args)
 {
-	if (!is_object(object))
+	execution_t ex;
+	
+	if (*execution == NULL)
 	{
-		return APPLY_ERROR;
-	}
-	else if (object != NULL)
-	{
-		ex->gc.type = OBJECT_UNINITIALIZED;
-		ex->gc.mark = 0;
-		ex->gc.prev =
-			ex->gc.next = &ex->gc;
-		heap_protect_from_gc(heap, (object_t)ex);
-
-		ex->exp   = NULL;
-		ex->env = NULL;
-
-		ex->stack_count = 0;
-		ex->stack_alloc = 1;
-		ex->stack = (object_t *)malloc(sizeof(object_t));
-		
-		TRY_PUSH(object);
-		int i;
-		for (i = 0; i != argc; ++ i)
+		if (!IS_OBJECT(object))
 		{
-			TRY_PUSH(args[i]);
+			return APPLY_ERROR;
 		}
-
-		ex->value = NULL;
-		ex->to_push = 0;
-
-		ex->gc.type = OBJECT_EXECUTION;
-		if (apply_internal(heap, argc, ex, ex_func, ex_argc, ex_args))
-			return APPLY_EXTERNAL_CALL;
+		else
+		{
+			ex = *execution = heap_execution_new(heap);
+						
+			TRY_PUSH(object);
+			int i;
+			for (i = 0; i != argc; ++ i)
+			{
+				TRY_PUSH(args[i]);
+			}
+			
+			ex->value = OBJECT_NULL;
+			ex->to_push = 0;
+			
+			OBJECT_TYPE_INIT(ex, OBJECT_TYPE_EXECUTION);
+			if (apply_internal(heap, argc, ex, ex_func, ex_argc, ex_args))
+				return APPLY_EXTERNAL_CALL;
+		}
 	}
 	else
 	{
-		if (is_object(*ex_func) && *ex_func)
+		ex = *execution;
+		
+		if (IS_OBJECT(*ex_func))
 			heap_unprotect(heap, *ex_func);
+		
 		int i;
 		for (i = 0; i != *ex_argc; ++ i)
 		{
 			object_t arg = (*ex_args)[i];
-			if (is_object(arg) && arg)
+			if (IS_OBJECT(arg))
 				heap_unprotect(heap, arg);
 		}
 	}
@@ -373,14 +379,14 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 		{
 			if (ex->exp == NULL)
 			{
-				if (is_object(ex->value) &&
-					ex->value != NULL)
+				if (IS_OBJECT(ex->value))
 					heap_protect_from_gc(heap, ex->value);
-				heap_detach((object_t)&ex);
 				
-				free(ex->stack);
-				
+				heap_execution_free(ex);
 				*ret = ex->value;
+
+				*execution = NULL;
+				
 				return APPLY_EXIT;
 			}
 
@@ -396,7 +402,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 						break;
 
 					case EXP_TYPE_AND:
-						if (ex->value == NULL)
+						if (ex->value == OBJECT_NULL)
 						{
 							ex->exp = exp_parent;
 							continue;
@@ -404,7 +410,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 						break;
 
 					case EXP_TYPE_OR:
-						if (ex->value != NULL)
+						if (ex->value != OBJECT_NULL)
 						{
 							ex->exp = exp_parent;
 							continue;
@@ -445,15 +451,15 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 						int i;
 						for (i = 0; i != exp_parent->set.ref.parent_level; ++ i)
 						{
-							if (e == NULL) break;
+							if (e == OBJECT_NULL) break;
 							e = e->environment.parent;
 						}
 
-						if (e != NULL && e->environment.length > exp_parent->set.ref.offset)
+						if (e != OBJECT_NULL && e->environment.length > exp_parent->set.ref.offset)
 							SLOT_SET(e->environment.slot_entry[exp_parent->set.ref.offset], ex->value);
 					}
 						
-					ex->value = NULL;
+					ex->value = OBJECT_NULL;
 					ex->exp = exp_parent;
 					
 					break;
@@ -463,7 +469,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				{
 					if (exp_parent->cond.cd == ex->exp)
 					{
-						if (ex->value != NULL)
+						if (ex->value != OBJECT_NULL)
 						{
 							ex->exp = exp_parent->cond.th;
 							ex->to_push = 0;
@@ -475,7 +481,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 						}
 						else
 						{
-							ex->value = NULL;
+							ex->value = OBJECT_NULL;
 							ex->exp = exp_parent;
 						}
 					}
@@ -500,7 +506,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 				case EXP_TYPE_CLOSURE:
 				{
-					ex->exp   = external_unbox(ex->stack[ex->stack_count - 2]);
+					ex->exp   = EXTERNAL_UNBOX(ex->stack[ex->stack_count - 2]);
 					ex->env = ex->stack[ex->stack_count - 1];
 
 					ex->stack_count -= 2;
@@ -515,7 +521,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 					cont->continuation.stack_count = ex->stack_count;
 					cont->continuation.stack = (object_t *)malloc(sizeof(object_t) * ex->stack_count);
 					memcpy(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
-					cont->gc.type = OBJECT_CONTINUATION;
+					OBJECT_TYPE_INIT(cont, OBJECT_TYPE_CONTINUATION);
 					
 					TRY_PUSH(ex->value);
 					TRY_PUSH(cont);
@@ -540,7 +546,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 		else if (ex->exp == NULL)
 		{
 			heap_detach((object_t)&ex);
-			*ret = NULL;
+			*ret = OBJECT_NULL;
 			return APPLY_EXIT_NO_VALUE;
 		}
 		else
@@ -557,18 +563,18 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 			case EXP_TYPE_REF:
 			{
-				ex->value = NULL;
+				ex->value = OBJECT_NULL;
 				if (ex->exp->ref.parent_level != (unsigned int)-1)
 				{
 					object_t e = ex->env;
 					int i;
 					for (i = 0; i != ex->exp->ref.parent_level; ++ i)
 					{
-						if (e == NULL) break;
+						if (e == OBJECT_NULL) break;
 						e = e->environment.parent;
 					}
 
-					if (e != NULL && e->environment.length > ex->exp->ref.offset)
+					if (e != OBJECT_NULL && e->environment.length > ex->exp->ref.offset)
 						ex->value = SLOT_GET(e->environment.slot_entry[ex->exp->ref.offset]);
 				}
 				ex->to_push = 1;
@@ -595,8 +601,8 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				new_env->environment.slot_entry = (slot_s *)malloc(sizeof(slot_s) * ex->exp->with.varc);
 				int i;
 				for (i = 0; i != ex->exp->with.varc; ++ i)
-					SLOT_INIT(new_env->environment.slot_entry[i], NULL);
-				new_env->environment.parent = ex->exp->with.inherit ? ex->env : NULL;
+					SLOT_INIT(new_env->environment.slot_entry[i], OBJECT_NULL);
+				new_env->environment.parent = ex->exp->with.inherit ? ex->env : OBJECT_NULL;
 
 				ex->env = new_env;
 				heap_unprotect(heap, new_env);
@@ -628,8 +634,8 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				object_t c = heap_object_new(heap);
 				c->closure.exp  = ex->exp->closure.child;
 				c->closure.argc = ex->exp->closure.argc;
-				c->closure.env = ex->exp->closure.inherit ? ex->env : NULL;
-				c->gc.type = OBJECT_CLOSURE;
+				c->closure.env = ex->exp->closure.inherit ? ex->env : OBJECT_NULL;
+				OBJECT_TYPE_INIT(c, OBJECT_TYPE_CLOSURE);
 
 				ex->value = c;
 				ex->to_push = 1;
@@ -652,7 +658,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 			default:
 			{
-				ex->value = NULL;
+				ex->value = OBJECT_NULL;
 				ex->to_push = 1;
 				break;
 			}

@@ -6,79 +6,68 @@
 void
 object_dump(object_t o)
 {
-	unsigned int suffix = encode_suffix(o);
-	switch (suffix)
+	switch (OBJECT_TYPE(o))
 	{
-	case ENCODE_SUFFIX_OBJECT:
-		if (o == NULL)
-		{
+	case ENCODE_SUFFIX_SYMBOL:
+		if (o ==  OBJECT_NULL)
 			printf(" (NULL)");
-		}
-		else
-		{
-			switch (o->gc.type)
-			{
-			case OBJECT_STRING:
-				printf(" \"%s\"", xstring_cstr(o->string));
-				break;
-
-			case OBJECT_PAIR:
-				printf(" (");
-				object_dump(SLOT_GET(o->pair.slot_car));
-				printf(" .");
-				object_dump(SLOT_GET(o->pair.slot_cdr));
-				printf(" )");
-				break;
-
-			case OBJECT_VECTOR:
-			{
-				printf(" [");
-				int i;
-				for (i = 0; i != o->vector.length; ++ i)
-				{
-					object_dump(SLOT_GET(o->vector.slot_entry[i]));
-				}
-				printf(" ]");
-				break;
-			}
-
-			case OBJECT_ENVIRONMENT:
-				printf(" (ENVIRONMENT)");
-				break;
-
-			case OBJECT_CLOSURE:
-				printf(" (CLOSURE)");
-				break;
-
-			case OBJECT_CONTINUATION:
-				printf(" (CONTINUATION)");
-				break;
-
-			case OBJECT_EXECUTION:
-				printf(" (EXECUTION)");
-				break;
-
-			case OBJECT_EXTERNAL:
-				printf(" (EXTERNAL)");
-				break;
-
-			default:
-				printf(" (UNKNOWN)");
-				break;
-			}
-		}
+		else printf(" (SYMBOL:%08x\n)", o);
 		break;
 
 	case ENCODE_SUFFIX_INT:
-		printf(" %d", int_unbox(o));
+		printf(" %d", INT_UNBOX(o));
 		break;
 
-	case ENCODE_SUFFIX_SYMBOL:
-		printf(" (SYMBOL)");
+	case ENCODE_SUFFIX_BOXED:
+		printf(" (BOXED:%08x)", EXTERNAL_UNBOX(o));
 		break;
 		
-	case ENCODE_SUFFIX_BOXED:
-		printf(" (BOXED:%08x)", external_unbox(o));
+	case OBJECT_TYPE_STRING:
+		printf(" \"%s\"", xstring_cstr(o->string));
+		break;
+		
+	case OBJECT_TYPE_PAIR:
+		printf(" (");
+		object_dump(SLOT_GET(o->pair.slot_car));
+		printf(" .");
+		object_dump(SLOT_GET(o->pair.slot_cdr));
+		printf(" )");
+		break;
+		
+	case OBJECT_TYPE_VECTOR:
+	{
+		printf(" [");
+		int i;
+		for (i = 0; i != o->vector.length; ++ i)
+		{
+			object_dump(SLOT_GET(o->vector.slot_entry[i]));
+		}
+		printf(" ]");
+		break;
+	}
+	
+	case OBJECT_TYPE_ENVIRONMENT:
+		printf(" (ENVIRONMENT)");
+		break;
+		
+	case OBJECT_TYPE_CLOSURE:
+		printf(" (CLOSURE)");
+		break;
+		
+	case OBJECT_TYPE_CONTINUATION:
+		printf(" (CONTINUATION)");
+		break;
+		
+	case OBJECT_TYPE_EXECUTION:
+		printf(" (EXECUTION)");
+		break;
+		
+	case OBJECT_TYPE_EXTERNAL:
+		printf(" (EXTERNAL)");
+		break;
+		
+	default:
+		printf(" (UNKNOWN)");
 		break;
 	}
 }
@@ -260,7 +249,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			sscanf(xstring_cstr(((as_symbol_t)(node + 1))->str), "%d", &v);
 
 			result->type = EXP_TYPE_VALUE;
-			result->value = int_box(v);
+			result->value = INT_BOX(v);
 			break;
 		}
 
@@ -268,11 +257,16 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			result->type = EXP_TYPE_VALUE;
 			result->value = heap_object_new(heap);
 			result->value->string = ((as_symbol_t)(node + 1))->str;
-			result->value->gc.type = OBJECT_STRING;
+			OBJECT_TYPE_INIT(result->value, OBJECT_TYPE_STRING);
 
 			priv->objs[priv->objs_count ++] = result->value;
 			
 			break;
+
+		default:
+			printf("unknown type to translate\n");
+			break;
+			
 		}
 
 		break;
@@ -448,6 +442,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 	default:
 	{
+		printf("unknown type to translate\n");
 		break;
 	}
 		
@@ -485,13 +480,13 @@ expression_from_ast(heap_t heap, ast_node_t node)
 	result->parent = NULL;
 	result->next = NULL;
 	
-	handle->gc.type = OBJECT_EXTERNAL;
+	OBJECT_TYPE_INIT(handle, OBJECT_TYPE_EXTERNAL);
 
 	int i;
 	for (i = 0; i < priv->objs_count; ++ i)
 	{
 		if (priv->objs[i] &&
-			is_object(priv->objs[i]))
+			IS_OBJECT(priv->objs[i]))
 		{
 			heap_unprotect(heap, priv->objs[i]);
 		}
