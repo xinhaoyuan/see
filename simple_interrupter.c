@@ -83,7 +83,7 @@ int main(int argc, const char *args[])
 			prog = NULL;
 			if (r == APPLY_EXIT || r == APPLY_EXIT_NO_VALUE)
 				break;
-			/* An example for handling external calls */
+			/* An example for handling external calls: display */
 			if (r == APPLY_EXTERNAL_CALL)
 			{
 				if (xstring_equal_cstr(ex_func->string, "display", -1))

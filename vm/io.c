@@ -211,6 +211,40 @@ handle_enumerate(object_t object, void *q, void(*enqueue)(void *, object_t))
 	}
 }
 
+/* simple routine to scan a integer in a string */
+static int
+scan_int(char *string, int *result)
+{
+	int sign;
+	int temp;
+	
+	switch (*string)
+	{
+	case 0:
+		*result = 0;
+		return -1;
+
+	case '-':
+		sign = -1;
+		++ string;
+		break;
+
+	default:
+		sign = 1;
+		break;
+	}
+
+	temp = 0;
+	while (*string >= '0' && *string <= '9')
+	{
+		temp = temp * 10 + (*string - '0');
+		++ string;
+	}
+
+	*result = temp * sign;
+	return 0;
+}
+
 static expression_t 
 expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_handle_priv_t priv)
 {
@@ -246,7 +280,8 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		case SYMBOL_NUMERIC:
 		{
 			int v;
-			sscanf(xstring_cstr(((as_symbol_t)(node + 1))->str), "%d", &v);
+
+			scan_int(xstring_cstr(((as_symbol_t)(node + 1))->str), &v);
 
 			result->type = EXP_TYPE_VALUE;
 			result->value = INT_BOX(v);
