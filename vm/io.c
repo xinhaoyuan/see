@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "vm.h"
 #include "io.h"
 
 void
@@ -280,8 +281,56 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		case SYMBOL_NUMERIC:
 		{
 			int v;
-
-			scan_int(xstring_cstr(((as_symbol_t)(node + 1))->str), &v);
+			as_symbol_t s = (as_symbol_t)(node + 1);
+			
+			if (xstring_cstr(s->str)[0] == '#')
+			{
+				if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_CONS, -1))
+				{
+					v = FUNC_CONS;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_CAR, -1))
+				{
+					v = FUNC_CAR;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_CDR, -1))
+				{
+					v = FUNC_CDR;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_ADD, -1))
+				{
+					v = FUNC_ADD;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_SUB, -1))
+				{
+					v = FUNC_SUB;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_EQ, -1))
+				{
+					v = FUNC_EQ;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_VEC, -1))
+				{
+					v = FUNC_VEC;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_VEC_LEN, -1))
+				{
+					v = FUNC_VEC_LEN;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_VEC_REF, -1))
+				{
+					v = FUNC_VEC_REF;
+				}
+				else if (xstring_equal_cstr(s->str, SYMBOL_CONSTANT_VEC_SET, -1))
+				{
+					v = FUNC_VEC_SET;
+				}
+				else
+				{
+					v = 0;
+				}
+			}
+			else scan_int(xstring_cstr(((as_symbol_t)(node + 1))->str), &v);
 
 			result->type = EXP_TYPE_VALUE;
 			result->value = INT_BOX(v);
@@ -289,14 +338,16 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		}
 
 		case SYMBOL_STRING:
+		{
+			as_symbol_t s = (as_symbol_t)(node + 1);
 			result->type = EXP_TYPE_VALUE;
 			result->value = heap_object_new(heap);
-			result->value->string = ((as_symbol_t)(node + 1))->str;
+			result->value->string = s->str;
 			OBJECT_TYPE_INIT(result->value, OBJECT_TYPE_STRING);
-
-			priv->objs[priv->objs_count ++] = result->value;
 			
+			priv->objs[priv->objs_count ++] = result->value;
 			break;
+		}
 
 		default:
 			printf("unknown type to translate\n");

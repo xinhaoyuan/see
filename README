@@ -7,3 +7,6 @@ at gmail dot com).
 
 Copyright of this project is dedicated to the public domain, including
 the source codes and documents.
+
+The engine is designed to be simple enough to be used in low level
+environment such as operating system kernels and embeded devices.

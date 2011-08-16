@@ -70,7 +70,7 @@ heap_new(void)
 
 	/* Initialize counters */
 	result->count = 0;
-	result->threshold = 1024;
+	result->threshold = 10240;
 
 	return result;
 }
@@ -264,7 +264,7 @@ heap_object_new(heap_t heap)
 	{
 		do_gc(heap);
 		/* Hardcoded rule for recalculation */
-		heap->threshold = (heap->count + 1024) << 1;
+		heap->threshold = (heap->count + 10240) << 1;
 
 #if GC_DEBUG
 		fprintf(stderr, "DEBUG: gc object count: %d\n", heap->count);

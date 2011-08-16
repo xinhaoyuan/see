@@ -14,6 +14,7 @@
 #define CHAR_IS_NUMERIC(c) ((c) <= '9' && (c) >= '0')
 #define CHAR_IS_NEWLINE(c) ((c) == '\n' || (c) == '\r')
 
+#define TOKEN_CHAR_NUMERIC_CONSTANT '#'
 #define TOKEN_CHAR_MINUS   '-'
 #define TOKEN_CHAR_DOT     '.'
 #define TOKEN_CHAR_LC      '('
@@ -199,21 +200,26 @@ ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_n
 		symbol->str  = string;
 
 		symbol->type = SYMBOL_NUMERIC;
-		int dot = 0;
-		int i;
-		for (i = 0; i != string->len; ++ i)
+		/* Process constant as numeric */
+		if (!(xstring_len(symbol->str) > 1 &&
+			  xstring_cstr(symbol->str)[0] == TOKEN_CHAR_NUMERIC_CONSTANT))
 		{
-			if (i == 0 && string->cstr[i] == TOKEN_CHAR_MINUS && string->len > 1) continue;
-			
-			if (!CHAR_IS_NUMERIC(string->cstr[i]))
+			int dot = 0;
+			int i;
+			for (i = 0; i != string->len; ++ i)
 			{
-				if (string->cstr[i] == TOKEN_CHAR_DOT)
+				if (i == 0 && string->cstr[i] == TOKEN_CHAR_MINUS && string->len > 1) continue;
+				
+				if (!CHAR_IS_NUMERIC(string->cstr[i]))
 				{
-					if (dot)
-						symbol->type = SYMBOL_GENERAL;
-					else dot = 1;
+					if (string->cstr[i] == TOKEN_CHAR_DOT)
+					{
+						if (dot)
+							symbol->type = SYMBOL_GENERAL;
+						else dot = 1;
+					}
+					else symbol->type = SYMBOL_GENERAL;
 				}
-				else symbol->type = SYMBOL_GENERAL;
 			}
 		}
 		break;

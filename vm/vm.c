@@ -9,17 +9,6 @@
 
 /* The internal function numbers */
 
-#define FUNC_CAR     0
-#define FUNC_CDR     1
-#define FUNC_CONS    2
-#define FUNC_ADD     3
-#define FUNC_SUB     4
-#define FUNC_EQ      5
-#define FUNC_VEC     6
-#define FUNC_VEC_LEN 7
-#define FUNC_VEC_REF 8
-#define FUNC_VEC_SET 9
-
 static inline unsigned int 
 bsr(unsigned int n)
 {
@@ -150,6 +139,8 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		
 	case OBJECT_TYPE_STRING:
 	{
+		/* External calls */
+		
 		*ex_func = func;
 		heap_protect_from_gc(heap, func);
 							
@@ -168,13 +159,15 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		ex->stack_count -= argc + 1;
 		ex->value = OBJECT_NULL;
 		ex->to_push = 1;
-			
+
 		return 1;
 	}
 	break;
 
 	case ENCODE_SUFFIX_INT:
 	{
+		/* Internal func */
+		
 		switch (INT_UNBOX(func))
 		{
 			
