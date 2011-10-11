@@ -1,7 +1,7 @@
 #ifndef __SEE_OBJECT_IMPL_H__
 #define __SEE_OBJECT_IMPL_H__
 
-#include <xstring.h>
+#include "../lib/xstring.h"
 
 typedef struct gc_header_s  gc_header_s;
 typedef gc_header_s        *gc_header_t;

@@ -42,7 +42,7 @@ typedef expression_s *expression_t;
 #define OBJECT_TYPE_EXECUTION     10
 #define OBJECT_TYPE_EXTERNAL      11
 
-#include "object_impl.h"
+#include "om/object_impl.h"
 
 #ifndef SLOT_INIT
 void slot_init(slot_t slot, object_t object);

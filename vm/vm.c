@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <object.h>
+#include "../object.h"
 
 #include "../as/symbol.h"
 #include "vm.h"

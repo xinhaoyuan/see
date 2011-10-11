@@ -5,14 +5,10 @@ E_ENCODE = $(shell echo $(1) | sed -e 's!_!_1!g' -e 's!/!_2!g')
 E_DECODE = $(shell echo $(1) | sed -e 's!_1!_!g' -e 's!_2!/!g')
 T_BASE   = target
 
-SEE_OM  ?= naive-scan-sweep
-
 T_CC_FLAGS_OPT ?= -O0 -g
-T_CC_FLAGS     ?= ${T_CC_FLAGS_OPT} -I_om_${SEE_OM} -I.
+T_CC_FLAGS     ?= ${T_CC_FLAGS_OPT}
 
-SRCFILES:= $(shell find . '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g') \
-			$(shell find _om_${SEE_OM} -iname "*.c" | sed -e 's!\./!!g')
-
+SRCFILES:= $(shell find . '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g')
 SRCFILES:= $(filter-out simple_interrupter.c, ${SRCFILES})
 OBJFILES:= $(addprefix ${T_BASE}/,$(addsuffix .o,$(foreach FILE,${SRCFILES},$(call E_ENCODE,${FILE}))))
 DEPFILES:= $(OBJFILES:.o=.d)

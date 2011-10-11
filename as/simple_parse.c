@@ -3,7 +3,7 @@
 
 #include "simple_parse.h"
 
-#include <xstring.h>
+#include "../lib/xstring.h"
 
 #define TOKEN_LC     0
 #define TOKEN_RC     1

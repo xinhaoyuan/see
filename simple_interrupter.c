@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <object.h>
+#include "object.h"
 
 #include "as/simple_parse.h"
 #include "as/syntax_parse.h"

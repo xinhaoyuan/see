@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "object.h"
+#include "../object.h"
 
 /* The definition of heap structure is hidden to user, so we can
  * change the internal implementation unconspicuously */

@@ -1,9 +1,9 @@
 #ifndef __SEE_SCOPE_H__
 #define __SEE_SCOPE_H__
 
-#include <xstring.h>
-#include <object.h>
+#include "../object.h"
 
+#include "../lib/xstring.h"
 #include "../as/ast.h"
 
 struct static_scope_s
