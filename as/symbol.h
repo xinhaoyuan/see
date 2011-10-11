@@ -1,7 +1,7 @@
 #ifndef __SEE_AS_SYMBOL_H__
 #define __SEE_AS_SYMBOL_H__
 
-#include <xstring.h>
+#include "../lib/xstring.h"
 
 #define SYMBOL_NULL    0
 #define SYMBOL_GENERAL 1

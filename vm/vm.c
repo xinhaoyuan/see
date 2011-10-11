@@ -612,13 +612,13 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 			case EXP_TYPE_AND:
 			{
-				ex->exp = ex->exp->and.child;
+				ex->exp = ex->exp->and_exp.child;
 				break;
 			}
 
 			case EXP_TYPE_OR:
 			{
-				ex->exp = ex->exp->or.child;
+				ex->exp = ex->exp->or_exp.child;
 				break;
 			}
 

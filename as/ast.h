@@ -3,7 +3,7 @@
 
 #include "symbol.h"
 
-#include <xstring.h>
+#include "../lib/xstring.h"
 
 #define AST_GENERAL   0
 #define AST_SYMBOL    1

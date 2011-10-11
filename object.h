@@ -60,11 +60,13 @@ void slot_set(slot_t slot, object_t object);
 #endif
 
 #ifndef OBJECT_TYPE
-#error OBJECT_TYPE(object) macro should be implemented in the object manager
+int object_type(object_t object);
+#define OBJECT_TYPE(object) object_type(object)
 #endif
 
 #ifndef OBJECT_TYPE_INIT
-#error OBJECT_TYPE_INIT(object, type) macro should be implemented in the object manager
+void object_type_init(object_t object, int type);
+#define OBJECT_TYPE_INIT(object, type) object_type_init(object, type)
 #endif
 
 
@@ -156,7 +158,7 @@ struct expression_s
 		struct
 		{
 			expression_t child;
-		} proc, and, or;
+		} proc, and_exp, or_exp;
 
 		struct
 		{

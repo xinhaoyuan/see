@@ -1,9 +1,9 @@
 #ifndef __SEE_VM_H__
 #define __SEE_VM_H__
 
-#include "object.h"
+#include "../object.h"
 
-#include <xstring.h>
+#include "../lib/xstring.h"
 
 #define APPLY_ERROR        -1
 #define APPLY_EXIT          0

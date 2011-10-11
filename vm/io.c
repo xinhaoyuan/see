@@ -350,7 +350,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		}
 
 		default:
-			printf("unknown type to translate\n");
+			printf("unknown type to translate symbol: %d\n", type);
 			break;
 			
 		}
@@ -413,7 +413,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		int i;
 		
 		result->type = EXP_TYPE_AND;
-		expression_t e = result->and.child =
+		expression_t e = result->and_exp.child =
 			expression_from_ast_internal(heap, p->nodes[0], handle, priv);
 		for (i = 1; i < p->count; ++ i)
 		{
@@ -433,7 +433,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		int i;
 		
 		result->type = EXP_TYPE_OR;
-		expression_t e = result->and.child =
+		expression_t e = result->or_exp.child =
 			expression_from_ast_internal(heap, p->nodes[0], handle, priv);
 		for (i = 1; i < p->count; ++ i)
 		{
@@ -528,7 +528,8 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 	default:
 	{
-		printf("unknown type to translate\n");
+		printf("unknown type to translate ast: %d\n", node->type);
+		ast_dump(node, stderr);
 		break;
 	}
 		

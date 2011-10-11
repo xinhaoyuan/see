@@ -333,7 +333,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			/* TODO ERROR */
 		}
 		else if (n->node->type != AST_SYMBOL ||
-				 ((as_symbol_t)n->node + 1)->type != AST_GENERAL)
+				 ((as_symbol_t)(n->node + 1))->type != SYMBOL_GENERAL)
 		{
 			succ = 0;
 			/* TODO ERROR */
