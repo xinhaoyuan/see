@@ -8,7 +8,7 @@
  * change the internal implementation unconspicuously */
 
 #define TO_GC(o)      ((gc_header_t)(o) - 1)
-#define TO_OBJECT(gc) ((object_t)(gc) + 1)
+#define TO_OBJECT(gc) ((object_t)((gc_header_t)(gc) + 1))
 
 struct heap_s
 {
@@ -264,7 +264,7 @@ heap_object_new(heap_t heap)
 {
 	if (heap->count >= heap->threshold)
 	{
-		do_gc(heap);
+		// do_gc(heap);
 		/* Hardcoded rule for recalculation */
 		heap->threshold = (heap->count + 10240) << 1;
 
@@ -340,8 +340,8 @@ continuation_from_expression(heap_t heap, expression_t e)
 execution_t
 heap_execution_new(heap_t heap)
 {
-	execution_t ex = (execution_t)((gc_header_t)malloc(sizeof(gc_header_s) + sizeof(execution_s)) + 1);
-	gc_header_t gc = TO_GC(ex);
+	gc_header_t gc = (gc_header_t)malloc(sizeof(gc_header_s) + sizeof(execution_s));
+	execution_t ex = (execution_t)(gc + 1);
 	
 	gc->mark = 0;
 	gc->prev =
@@ -362,5 +362,6 @@ void
 heap_execution_free(execution_t ex)
 {
 	free(ex->stack);
+	heap_detach((object_t)ex);
 	free(TO_GC(ex));
 }

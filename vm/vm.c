@@ -22,7 +22,7 @@ bsr(unsigned int n)
 #define TRY_PUSH(x)														\
 	{																	\
 		++ ex->stack_count;												\
-		if (ex->stack_alloc < ex->stack_count)							\
+		while (ex->stack_alloc < ex->stack_count)							\
 		{																\
 			ex->stack_alloc <<= 1;										\
 			ex->stack = (object_t *)realloc(ex->stack, sizeof(object_t) * ex->stack_alloc); \
@@ -380,8 +380,8 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				if (IS_OBJECT(ex->value))
 					heap_protect_from_gc(heap, ex->value);
 				
-				heap_execution_free(ex);
 				*ret = ex->value;
+				heap_execution_free(ex);
 
 				*execution = NULL;
 				
@@ -504,7 +504,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 				case EXP_TYPE_CLOSURE:
 				{
-					ex->exp   = EXTERNAL_UNBOX(ex->stack[ex->stack_count - 2]);
+					ex->exp = EXTERNAL_UNBOX(ex->stack[ex->stack_count - 2]);
 					ex->env = ex->stack[ex->stack_count - 1];
 
 					ex->stack_count -= 2;
