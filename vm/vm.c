@@ -92,9 +92,14 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		OBJECT_TYPE_INIT(new_env, OBJECT_TYPE_ENVIRONMENT);
 		ex->stack_count -= argc + 1;
 
-		if (!(ex->exp->parent->type == EXP_TYPE_APPLY ?
-			  ex->exp->parent->apply.tail :
-			  ex->exp->parent->callcc.tail))
+		if (ex->exp == NULL)
+		{
+			TRY_PUSH(EXTERNAL_BOX(NULL));
+			TRY_PUSH(OBJECT_NULL);
+		}
+		else if (!(ex->exp->parent->type == EXP_TYPE_APPLY ?
+			   ex->exp->parent->apply.tail :
+			   ex->exp->parent->callcc.tail))
 		{
 			TRY_PUSH(EXTERNAL_BOX(ex->exp->parent));
 			TRY_PUSH(ex->env);
