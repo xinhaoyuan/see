@@ -264,7 +264,7 @@ heap_object_new(heap_t heap)
 {
 	if (heap->count >= heap->threshold)
 	{
-		// do_gc(heap);
+		do_gc(heap);
 		/* Hardcoded rule for recalculation */
 		heap->threshold = (heap->count + 10240) << 1;
 

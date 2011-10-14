@@ -493,6 +493,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				case EXP_TYPE_WITH:
 				{
 					ex->exp = exp_parent;
+					ex->env = ex->env->environment.parent;
 					break;
 				}
 
