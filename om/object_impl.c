@@ -340,7 +340,7 @@ heap_detach(object_t object)
 }
 
 object_t
-continuation_from_expression(heap_t heap, object_t handle)
+continuation_from_handle(heap_t heap, object_t handle)
 {
 	object_t prog = heap_object_new(heap);
 	prog->continuation.exp = handle_expression_get(handle);

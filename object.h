@@ -234,6 +234,6 @@ void heap_detach(object_t object);
 execution_t heap_execution_new(heap_t heap);
 void        heap_execution_free(execution_t ex);
 
-object_t continuation_from_expression(heap_t heap, object_t handle);
+object_t continuation_from_handle(heap_t heap, object_t handle);
 
 #endif

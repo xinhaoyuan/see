@@ -75,7 +75,7 @@ int main(int argc, const char *args[])
 		object_t handle = handle_from_ast(heap, n);
 
 		/* Construct the SEE object */
-		object_t prog = continuation_from_expression(heap, handle);
+		object_t prog = continuation_from_handle(heap, handle);
 				
 		execution_t ex = NULL;
 		object_t  ex_func;
