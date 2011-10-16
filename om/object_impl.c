@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "../object.h"
+#include "../vm/io.h"
 
 /* The definition of heap structure is hidden to user, so we can
  * change the internal implementation unconspicuously */
@@ -339,15 +340,15 @@ heap_detach(object_t object)
 }
 
 object_t
-continuation_from_expression(heap_t heap, expression_t e)
+continuation_from_expression(heap_t heap, object_t handle)
 {
 	object_t prog = heap_object_new(heap);
-	prog->continuation.exp = e;
+	prog->continuation.exp = handle_expression_get(handle);
 	prog->continuation.env = OBJECT_NULL;
 	prog->continuation.stack_count = 0;
 	prog->continuation.stack = NULL;
 	OBJECT_TYPE_INIT(prog, OBJECT_TYPE_CONTINUATION);
-	
+
 	return prog;
 }
 

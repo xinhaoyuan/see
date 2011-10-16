@@ -225,13 +225,15 @@ heap_t   heap_new(void);
 void     heap_free(heap_t heap);
 object_t heap_object_new(heap_t heap);
 
+/* When create a reference to the object, the object should be protect from the GC collection  */
 void heap_protect_from_gc(heap_t heap, object_t object);
 void heap_unprotect(heap_t heap, object_t object);
+
 void heap_detach(object_t object);
 
 execution_t heap_execution_new(heap_t heap);
 void        heap_execution_free(execution_t ex);
 
-object_t continuation_from_expression(heap_t heap, expression_t e);
+object_t continuation_from_expression(heap_t heap, object_t handle);
 
 #endif

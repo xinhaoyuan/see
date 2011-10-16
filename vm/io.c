@@ -540,8 +540,8 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 	return result;
 }
 
-expression_t
-expression_from_ast(heap_t heap, ast_node_t node)
+object_t
+handle_from_ast(heap_t heap, ast_node_t node)
 {
 	unsigned int exps_size = 0;
 	unsigned int objs_size = 0;
@@ -579,5 +579,11 @@ expression_from_ast(heap_t heap, ast_node_t node)
 		}
 	}
 
-	return result;
+	return handle;
+}
+
+expression_t
+handle_expression_get(object_t handle)
+{
+	return ((exp_handle_priv_t)(handle->external.priv))->exps;
 }

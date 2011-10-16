@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+/* All header files that a interpreter may need */
 #include "object.h"
-
 #include "as/simple_parse.h"
 #include "as/syntax_parse.h"
 #include "vm/symref.h"
@@ -60,16 +60,22 @@ int main(int argc, const char *args[])
 		struct simple_stream s;
 		s.file = fopen(args[1], "r");
 		s.buf  = BUF_EMPTY;
-		
+
+		/* Parse input stream into general AST node */
 		ast_node_t n = ast_simple_parse_char_stream((stream_in_f)simple_stream_in, &s);
 
 		fclose(s.file);
-		
+
+		/* Parse the AST symbol */
 		n = ast_syntax_parse(n, 0);
 		sematic_symref_analyse(n);
 
-		expression_t e = expression_from_ast(heap, n);
-		object_t prog = continuation_from_expression(heap, e);
+		/* Generate the object which encapsulate the compact AST
+		 * format (expression) to execute */
+		object_t handle = handle_from_ast(heap, n);
+
+		/* Construct the SEE object */
+		object_t prog = continuation_from_expression(heap, handle);
 				
 		execution_t ex = NULL;
 		object_t  ex_func;
