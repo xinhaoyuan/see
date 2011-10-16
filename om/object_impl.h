@@ -22,6 +22,8 @@ struct slot_s
 #define OBJECT_TYPE_INIT(o, t)			\
 	if (IS_OBJECT(o)) ((gc_header_t)(o) - 1)->type = t
 
+#define GC_HEADER_SPACE 16
+
 struct gc_header_s
 {
 	union
@@ -30,10 +32,11 @@ struct gc_header_s
 		{
 			unsigned char type;
 			unsigned char mark;
+			unsigned int  prot_level;
 			gc_header_t   next, prev;
 		};
 
-		char __space[16];
+		char __space[GC_HEADER_SPACE];
 	};
 };
 

@@ -10,6 +10,8 @@
 #define TO_GC(o)      ((gc_header_t)(o) - 1)
 #define TO_OBJECT(gc) ((object_t)((gc_header_t)(gc) + 1))
 
+static char __sa[sizeof(gc_header_s) == GC_HEADER_SPACE ? 0 : -1];
+
 struct heap_s
 {
 	unsigned int count;			/* living object count */
@@ -279,6 +281,7 @@ heap_object_new(heap_t heap)
 	result->type = OBJECT_TYPE_UNINITIALIZED;
 	result->mark = 0;
 	
+	result->prot_level = 1;
 	result->next = &heap->locked;
 	result->prev = heap->locked.prev;
 	result->prev->next = result;
@@ -291,29 +294,40 @@ void
 heap_protect_from_gc(heap_t heap, object_t object)
 {
 	gc_header_t gc = TO_GC(object);
-	gc->prev->next = gc->next;
-	gc->next->prev = gc->prev;
-	
-
-	gc->next = &heap->locked;
-	gc->prev = heap->locked.prev;
-	gc->prev->next = gc;
-	gc->next->prev = gc;
+	++ gc->prot_level;
+	if (gc->prot_level == 1)
+	{
+		gc->prev->next = gc->next;
+		gc->next->prev = gc->prev;
+		
+		gc->next = &heap->locked;
+		gc->prev = heap->locked.prev;
+		gc->prev->next = gc;
+		gc->next->prev = gc;
+	}
 }
 
 void
 heap_unprotect(heap_t heap, object_t object)
 {
 	gc_header_t gc = TO_GC(object);
-	gc->mark = 0;
-	gc->prev->next = gc->next;
-	gc->next->prev = gc->prev;
-	
+	if (gc->prot_level > 0)
+	{
+		-- gc->prot_level;
 
-	gc->next = &heap->managed;
-	gc->prev = heap->managed.prev;
-	gc->prev->next = gc;
-	gc->next->prev = gc;
+		if (gc->prot_level == 0)
+		{
+			gc->mark = 0;
+			gc->prev->next = gc->next;
+			gc->next->prev = gc->prev;
+			
+			
+			gc->next = &heap->managed;
+			gc->prev = heap->managed.prev;
+			gc->prev->next = gc;
+			gc->next->prev = gc;
+		}
+	}
 }
 
 void
@@ -342,7 +356,8 @@ heap_execution_new(heap_t heap)
 {
 	gc_header_t gc = (gc_header_t)malloc(sizeof(gc_header_s) + sizeof(execution_s));
 	execution_t ex = (execution_t)(gc + 1);
-	
+
+	gc->prot_level = 0;
 	gc->mark = 0;
 	gc->prev =
 		gc->next = gc;

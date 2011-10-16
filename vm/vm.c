@@ -341,10 +341,14 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 			ex = *execution = heap_execution_new(heap);
 						
 			TRY_PUSH(object);
+			if (IS_OBJECT(object))
+				heap_unprotect(heap, object);
 			int i;
 			for (i = 0; i != argc; ++ i)
 			{
 				TRY_PUSH(args[i]);
+				if (IS_OBJECT(args[i]))
+					heap_unprotect(heap, args[i]);
 			}
 			
 			ex->value = OBJECT_NULL;
