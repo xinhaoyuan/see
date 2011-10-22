@@ -6,6 +6,7 @@
 #include "object.h"
 #include "as/simple_parse.h"
 #include "as/syntax_parse.h"
+#include "as/free.h"
 #include "vm/symref.h"
 #include "vm/io.h"
 #include "vm/vm.h"
