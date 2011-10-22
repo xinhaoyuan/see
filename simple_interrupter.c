@@ -93,6 +93,8 @@ int main(int argc, const char *args[])
 		/* Generate the object which encapsulate the compact AST
 		 * format (expression) to execute */
 		object_t handle = handle_from_ast(heap, n);
+		/* release the ast */
+		ast_free(n);
 
 		/* Construct the SEE object */
 		object_t prog = continuation_from_handle(heap, handle);

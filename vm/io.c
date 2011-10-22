@@ -269,7 +269,6 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			else
 			{
 				result->ref  = *(scope_ref_t)node->header.priv;
-				free(node->header.priv);
 			}
 			
 			break;
@@ -336,7 +335,8 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		{
 			result->type = EXP_TYPE_VALUE;
 			result->value = heap_object_new(heap);
-			result->value->string = node->symbol.str;
+			result->value->string = xstring_from_cstr(
+				xstring_cstr(node->symbol.str), xstring_len(node->symbol.str));
 			OBJECT_TYPE_INIT(result->value, OBJECT_TYPE_STRING);
 			
 			priv->objs[priv->objs_count ++] = result->value;
@@ -359,7 +359,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		/* XXX */
 		result->closure.inherit = 1;
 		
-		result->closure.child = expression_from_ast_internal(heap, node->lambda.proc, handle, priv);		
+		result->closure.child = expression_from_ast_internal(heap, node->lambda.proc, handle, priv);
 		result->closure.child->parent = result;
 		result->closure.child->next = NULL;
 		
@@ -509,7 +509,6 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		else
 		{
 			result->set.ref = *(scope_ref_t)node->header.priv;
-			free(node->header.priv);
 		}
 
 		break;
@@ -535,8 +534,6 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		
 	}
 
-	free(node);
-	
 	return result;
 }
 
