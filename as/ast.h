@@ -33,18 +33,18 @@ typedef struct ast_node_s
 
 	union
 	{
-		struct ast_symbol_s
+		struct
 		{
 			int       type;
 			xstring_t str;
 		} symbol;
 		
-		struct ast_general_s
+		struct 
 		{
 			ast_node_t head;
 		} general;
 
-		struct ast_apply_s
+		struct 
 		{
 			int         tail;
 			ast_node_t  func;
@@ -52,20 +52,20 @@ typedef struct ast_node_s
 			ast_node_t *args;
 		} apply;
 
-		struct ast_set_s
+		struct 
 		{
 			xstring_t     name;
 			ast_node_t    value;
 		} set;
 
-		struct ast_cond_s
+		struct
 		{
 			ast_node_t c;
 			ast_node_t t;
 			ast_node_t e;
 		} cond;
 
-		struct ast_lambda_s
+		struct
 		{
 			int         tail_list;
 			int         argc;
@@ -73,29 +73,29 @@ typedef struct ast_node_s
 			ast_node_t  proc;
 		} lambda;
 
-		struct ast_with_s
+		struct
 		{
 			int         varc;
 			xstring_t  *vars;
 			ast_node_t  proc;
 		} with;
 
-		struct ast_proc_s
+		struct
 		{
 			ast_node_t head;
 		} proc;
 
-		struct ast_and_s
+		struct
 		{
 			ast_node_t head;
 		} s_and;
 
-		struct ast_or_s
+		struct
 		{
 			ast_node_t head;
 		} s_or;
 
-		struct ast_callcc_s
+		struct
 		{
 			int tail;
 			ast_node_t node;

@@ -106,7 +106,7 @@ ast_free(ast_node_t node)
 		break;
 
 	default:
-		fprintf("ast_free: Unknown ast type: %d\n", node->header.type);
+		fprintf(stderr, "ast_free: Unknown ast type: %d\n", node->header.type);
 		break;
 	}
 
