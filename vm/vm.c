@@ -4,7 +4,6 @@
 
 #include "../object.h"
 
-#include "../as/symbol.h"
 #include "vm.h"
 
 /* The internal function numbers */

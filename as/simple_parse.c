@@ -5,10 +5,11 @@
 
 #include "../lib/xstring.h"
 
-#define TOKEN_LC     0
-#define TOKEN_RC     1
-#define TOKEN_SYMBOL 2
-#define TOKEN_STRING 3
+#define TOKEN_EOF    0
+#define TOKEN_LC     1
+#define TOKEN_RC     2
+#define TOKEN_SYMBOL 3
+#define TOKEN_STRING 4
 
 #define CHAR_IS_SEPARATOR(c) ((c) == '\n' || (c) == '\r' || (c) == ' ' || (c) == '\t')
 #define CHAR_IS_NUMERIC(c) ((c) <= '9' && (c) >= '0')
@@ -23,6 +24,8 @@
 #define TOKEN_CHAR_ESCAPE  '\\'
 #define TOKEN_CHAR_COMMENT ';'
 
+/* Parse a token from the input stream */
+/* return the type of token, -1 mean some error */
 static int
 parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 {
@@ -42,6 +45,7 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 		if (token_buf == NULL)											\
 			token_buf = (char *)malloc(sizeof(char) * token_buf_alloc); \
 		else token_buf = (char *)realloc(token_buf, sizeof(char) * token_buf_alloc); \
+		if (token_buf == NULL) return -1;								\
 	}
 	
 	while (1)
@@ -49,9 +53,12 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 		int now = stream_in(stream, 0);
 		if (now < 0)
 		{
-			type = TOKEN_SYMBOL;
 			if (token_len > 0)
+			{
+				type = TOKEN_SYMBOL;
 				*result = xstring_from_cstr(token_buf, token_len);
+			}
+			else type = TOKEN_EOF;
 			break;
 		}
 
@@ -176,33 +183,42 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 	return type;
 }
 
+/* Internal parser that parse a complete ast expression */
+/* fill the result ptr */
+/* return 0 means success, -1 means error */
 static int
 ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_node_t *result)
 {
 	xstring_t string;
 	int type;
-
 	ast_node_t node;
 	
-	type = parse_token(stream_in, stream, &string);
-	if (type == TOKEN_SYMBOL && string == NULL) return -1;
+	*result = NULL;
+	
+	if ((type = parse_token(stream_in, stream, &string)) < 0) return -1;
+	if (type == TOKEN_EOF)
+	{
+		*result = NULL;
+		return 0;
+	}
 
 	switch (type)
 	{
 	case TOKEN_SYMBOL:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct as_symbol_s));
-		node->type = AST_SYMBOL;
-		node->parent = NULL;
-		node->priv = NULL;
+		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		if (node == NULL) return -1;
+		
+		node->header.type = AST_SYMBOL;
+		node->header.prev = node->header.next = node;
+		node->header.priv = NULL;
+		
+		node->symbol.str  = string;
 
-		as_symbol_t symbol = (as_symbol_t)(node + 1);
-		symbol->str  = string;
-
-		symbol->type = SYMBOL_NUMERIC;
+		node->symbol.type = SYMBOL_NUMERIC;
 		/* Process constant as numeric */
-		if (!(xstring_len(symbol->str) > 1 &&
-			  xstring_cstr(symbol->str)[0] == TOKEN_CHAR_NUMERIC_CONSTANT))
+		if (!(xstring_len(node->symbol.str) > 1 &&
+			  xstring_cstr(node->symbol.str)[0] == TOKEN_CHAR_NUMERIC_CONSTANT))
 		{
 			int dot = 0;
 			int i;
@@ -215,62 +231,75 @@ ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_n
 					if (string->cstr[i] == TOKEN_CHAR_DOT)
 					{
 						if (dot)
-							symbol->type = SYMBOL_GENERAL;
+							node->symbol.type = SYMBOL_GENERAL;
 						else dot = 1;
 					}
-					else symbol->type = SYMBOL_GENERAL;
+					else node->symbol.type = SYMBOL_GENERAL;
 				}
 			}
 		}
+
 		break;
 	}
 		
 	case TOKEN_STRING:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct as_symbol_s));
-		node->type = AST_SYMBOL;
-		node->parent = NULL;
-		node->priv = NULL;
+		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		if (node == NULL) return -1;
+		
+		node->header.type = AST_SYMBOL;
+		node->header.prev = node->header.next = node;
+		node->header.priv = NULL;
 
-		as_symbol_t symbol = (as_symbol_t)(node + 1);
-		symbol->type = SYMBOL_STRING;
-		symbol->str  = string;
+		node->symbol.type = SYMBOL_STRING;
+		node->symbol.str  = string;
 		break;
 	}
 		
 	case TOKEN_LC:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_general_s));
-		node->type = AST_GENERAL;
-		node->parent = NULL;
-		node->priv = NULL;
+		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		if (node == NULL) return -1;
+		*result = node;
+		
+		node->header.type = AST_GENERAL;
+		node->header.prev = node->header.next = node;
+		node->header.priv = NULL;
 
-		ast_general_t g = (ast_general_t)(node + 1), gc;
-		g->node = NULL;
-		g->left = g->right = g;
+		node->general.head = NULL;
 
 		while (1)
 		{
 			ast_node_t c;
 			int r = ast_simple_parse_char_stream_internal(stream_in, stream, &c);
-			if (r < 0) break;
+			if (r < 0)
+			{
+				if (c != NULL) ast_free(c);
+				return -1;
+			}
+			if (c == NULL) break;
 
-			gc = (ast_general_t)malloc(sizeof(struct ast_general_s));
-			gc->node = c;
-			c->parent = node;
-			
-			gc->left = g->left;
-			gc->right = g;
+			if (node->general.head == NULL)
+			{
+				node->general.head = c;
+				c->header.prev = c->header.next = c;
+			}
+			else
+			{
+				c->header.next = node->general.head;
+				c->header.prev = c->header.next->header.prev;
 
-			gc->left->right = gc;
-			gc->right->left = gc;
+				c->header.next->header.prev = c;
+				c->header.prev->header.next = c;
+			}
 		}
 		
 		break;
 	}
 		
 	case TOKEN_RC:
-		return -1;
+		*result = NULL;
+		return 0;
 	}
 
 	*result = node;
@@ -281,6 +310,10 @@ ast_node_t
 ast_simple_parse_char_stream(stream_in_f stream_in, void *stream)
 {
 	ast_node_t node;
-	if (ast_simple_parse_char_stream_internal(stream_in, stream, &node) < 0) return NULL;
+	if (ast_simple_parse_char_stream_internal(stream_in, stream, &node) < 0)
+	{
+		if (node != NULL) ast_free(node);
+		node = NULL;
+	}
 	return node;
 }

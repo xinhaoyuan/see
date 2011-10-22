@@ -1,8 +1,6 @@
 #ifndef __SEE_AS_AST_H__
 #define __SEE_AS_AST_H__
 
-#include "symbol.h"
-
 #include "../lib/xstring.h"
 
 #define AST_GENERAL   0
@@ -17,80 +15,93 @@
 #define AST_OR        9
 #define AST_CALLCC    10
 
-struct ast_header_s
-{
-	int                  type;
-	struct ast_header_s *parent;
-	struct ast_header_s *next;
-	void                *priv;
-};
+#define SYMBOL_NULL    0
+#define SYMBOL_GENERAL 1
+#define SYMBOL_NUMERIC 2
+#define SYMBOL_STRING  3
 
-typedef struct ast_header_s *ast_node_t;
-
-typedef struct ast_general_s
+typedef struct ast_node_s *ast_node_t;
+typedef struct ast_node_s
 {
-	ast_node_t node;
-	struct ast_general_s *left, *right;
-} *ast_general_t;
+	struct ast_header_s
+	{
+		int        type;
+		ast_node_t prev;
+		ast_node_t next;
+		void      *priv;
+	} header;
 
-typedef struct ast_apply_s
-{
-	int         tail;
-	ast_node_t  func;
-	int         argc;
-	ast_node_t *args;
-} *ast_apply_t;
+	union
+	{
+		struct ast_symbol_s
+		{
+			int       type;
+			xstring_t str;
+		} symbol;
+		
+		struct ast_general_s
+		{
+			ast_node_t head;
+		} general;
 
-typedef struct ast_set_s
-{
-	xstring_t     name;
-	ast_node_t    value;
-} *ast_set_t;
+		struct ast_apply_s
+		{
+			int         tail;
+			ast_node_t  func;
+			int         argc;
+			ast_node_t *args;
+		} apply;
 
-typedef struct ast_cond_s
-{
-	ast_node_t c;
-	ast_node_t t;
-	ast_node_t e;
-} *ast_cond_t;
+		struct ast_set_s
+		{
+			xstring_t     name;
+			ast_node_t    value;
+		} set;
 
-typedef struct ast_lambda_s
-{
-	int         tail_list;
-	int         argc;
-	xstring_t  *args;
-	ast_node_t  proc;
-} *ast_lambda_t;
+		struct ast_cond_s
+		{
+			ast_node_t c;
+			ast_node_t t;
+			ast_node_t e;
+		} cond;
 
-typedef struct ast_with_s
-{
-	int         varc;
-	xstring_t  *vars;
-	ast_node_t  proc;
-} *ast_with_t;
+		struct ast_lambda_s
+		{
+			int         tail_list;
+			int         argc;
+			xstring_t  *args;
+			ast_node_t  proc;
+		} lambda;
 
-typedef struct ast_proc_s
-{
-	int         count;
-	ast_node_t *nodes;
-} *ast_proc_t;
+		struct ast_with_s
+		{
+			int         varc;
+			xstring_t  *vars;
+			ast_node_t  proc;
+		} with;
 
-typedef struct ast_and_s
-{
-	int         count;
-	ast_node_t *nodes;
-} *ast_and_t;
+		struct ast_proc_s
+		{
+			ast_node_t head;
+		} proc;
 
-typedef struct ast_or_s
-{
-	int         count;
-	ast_node_t *nodes;
-} *ast_or_t;
+		struct ast_and_s
+		{
+			ast_node_t head;
+		} s_and;
 
-typedef struct ast_callcc_s
-{
-	int tail;
-	ast_node_t node;
-} *ast_callcc_t;
+		struct ast_or_s
+		{
+			ast_node_t head;
+		} s_or;
+
+		struct ast_callcc_s
+		{
+			int tail;
+			ast_node_t node;
+		} callcc;
+
+	};
+} ast_node_s;
 
 #endif

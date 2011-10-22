@@ -16,8 +16,10 @@ ast_dump(ast_node_t root, FILE *out)
 	while (max < size)													\
 	{																	\
 		max <<= 1;														\
-		ast_stack = (ast_node_t *)realloc(ast_stack, sizeof(ast_node_t) * max);	\
-		level_stack = (int *)realloc(level_stack, sizeof(int) * max);	\
+		if ((ast_stack = (ast_node_t *)realloc(ast_stack, sizeof(ast_node_t) * max)) == NULL) \
+			return -1;													\
+		if ((level_stack = (int *)realloc(level_stack, sizeof(int) * max)) == NULL)	\
+		{ free(ast_stack); return -1; }									\
 	}
 
 	ast_stack   = (ast_node_t *)malloc(sizeof(ast_node_t));
@@ -40,25 +42,24 @@ ast_dump(ast_node_t root, FILE *out)
 			fputc('.', out);
 		}
 		
-		switch (now->type)
+		switch (now->header.type)
 		{
 
 		case AST_GENERAL:
 		{
 			fprintf(out, "General:");
-			
-			ast_general_t g = (ast_general_t)(now + 1);
-			ast_general_t n = g->left;
+			ast_node_t c = now->general.head->header.prev;
 
-			while (n != g)
+			while (1)
 			{
 				size += 1;
 				EXPAND_STACK;
 				
-				ast_stack[size - 1]   = n->node;
+				ast_stack[size - 1]   = c;
 				level_stack[size - 1] = indent + 1;
 
-				n = n->left;
+				if (c == now->general.head) break;
+				c = c->header.prev;
 			}
 
 			break;
@@ -66,7 +67,7 @@ ast_dump(ast_node_t root, FILE *out)
 		
 		case AST_SYMBOL:
 		{
-			int type = ((as_symbol_t)(now + 1))->type;
+			int type = now->symbol.type;
 			switch (type)
 			{
 			case SYMBOL_NULL:
@@ -74,15 +75,15 @@ ast_dump(ast_node_t root, FILE *out)
 				break;
 				
 			case SYMBOL_GENERAL:
-				fprintf(out, "Symbol: %s", xstring_cstr(((as_symbol_t)(now + 1))->str));
+				fprintf(out, "Symbol: %s", xstring_cstr(now->symbol.str));
 				break;
 
 			case SYMBOL_NUMERIC:
-				fprintf(out, "Numeric: %s", xstring_cstr(((as_symbol_t)(now + 1))->str));
+				fprintf(out, "Numeric: %s", xstring_cstr(now->symbol.str));
 				break;
 
 			case SYMBOL_STRING:
-				fprintf(out, "String: %s", xstring_cstr(((as_symbol_t)(now + 1))->str));
+				fprintf(out, "String: %s", xstring_cstr(now->symbol.str));
 				break;
 			}
 				
@@ -91,38 +92,36 @@ ast_dump(ast_node_t root, FILE *out)
 
 		case AST_LAMBDA:
 		{
-			ast_lambda_t l = (ast_lambda_t)(now + 1);
 			fprintf(out, "Lambda:");
 			
-			for (i = 0; i != l->argc; ++ i)
+			for (i = 0; i != now->lambda.argc; ++ i)
 			{
-				fprintf(out, " %s", xstring_cstr(l->args[i]));
+				fprintf(out, " %s", xstring_cstr(now->lambda.args[i]));
 			}
 
-			if (l->tail_list) fprintf(out, "*");
+			if (now->lambda.tail_list) fprintf(out, "*");
 
 			size += 1;
 			EXPAND_STACK;
 
-			ast_stack[size - 1] = l->proc;
+			ast_stack[size - 1] = now->lambda.proc;
 			level_stack[size - 1] = indent;
 			break;
 		}
 
 		case AST_WITH:
 		{
-			ast_with_t w = (ast_with_t)(now + 1);
 			fprintf(out, "With:");
 			
-			for (i = 0; i != w->varc; ++ i)
+			for (i = 0; i != now->with.varc; ++ i)
 			{
-				fprintf(out, " %s", xstring_cstr(w->vars[i]));
+				fprintf(out, " %s", xstring_cstr(now->with.vars[i]));
 			}
 
 			size += 1;
 			EXPAND_STACK;
 
-			ast_stack[size - 1] = w->proc;
+			ast_stack[size - 1] = now->with.proc;
 			level_stack[size - 1] = indent;
 			break;
 		}
@@ -130,50 +129,58 @@ ast_dump(ast_node_t root, FILE *out)
 
 		case AST_PROC:
 		{
-			ast_proc_t p = (ast_proc_t)(now + 1);
 			fprintf(out, "Proc:");
 
-			size += p->count;
-			EXPAND_STACK;
-			
-			for (i = 0; i < p->count; ++ i)
+			ast_node_t cur = now->proc.head->header.prev;
+			while (cur != NULL)
 			{
-				ast_stack[size - i - 1] = p->nodes[i];
-				level_stack[size - i - 1] = indent + 1;
-			}
+				
+				size += 1;
+				EXPAND_STACK;
+				ast_stack[size - 1] = cur;
+				level_stack[size - 1] = indent + 1;
 
+				if (cur == now->proc.head) cur = NULL;
+				else cur = cur->header.prev;
+			}
 			break;
 		}
 
 		case AST_AND:
 		{
-			ast_and_t p = (ast_and_t)(now + 1);
 			fprintf(out, "And:");
 
-			size += p->count;
-			EXPAND_STACK;
-			
-			for (i = 0; i < p->count; ++ i)
+			ast_node_t cur = now->s_and.head->header.prev;
+			while (cur != NULL)
 			{
-				ast_stack[size - i - 1] = p->nodes[i];
-				level_stack[size - i - 1] = indent + 1;
-			}
+				
+				size += 1;
+				EXPAND_STACK;
+				ast_stack[size - 1] = cur;
+				level_stack[size - 1] = indent + 1;
 
+				if (cur == now->s_and.head) cur = NULL;
+				else cur = cur->header.prev;
+			}
+			
 			break;
 		}
 
 		case AST_OR:
 		{
-			ast_or_t p = (ast_or_t)(now + 1);
 			fprintf(out, "Or:");
 
-			size += p->count;
-			EXPAND_STACK;
-			
-			for (i = 0; i < p->count; ++ i)
+			ast_node_t cur = now->s_or.head->header.prev;
+			while (cur != NULL)
 			{
-				ast_stack[size - i - 1] = p->nodes[i];
-				level_stack[size - i - 1] = indent + 1;
+				
+				size += 1;
+				EXPAND_STACK;
+				ast_stack[size - 1] = cur;
+				level_stack[size - 1] = indent + 1;
+
+				if (cur == now->s_or.head) cur = NULL;
+				else cur = cur->header.prev;
 			}
 
 			break;
@@ -182,17 +189,16 @@ ast_dump(ast_node_t root, FILE *out)
 
 		case AST_APPLY:
 		{
-			ast_apply_t apply = (ast_apply_t)(now + 1);
 			fprintf(out, "Apply: func args");
 			
-			size += apply->argc + 1;
+			size += now->apply.argc + 1;
 			EXPAND_STACK;
 			
-			ast_stack[size - 1] = apply->func;
+			ast_stack[size - 1] = now->apply.func;
 			level_stack[size - 1] = indent + 1;
-			for (i = 0; i < apply->argc; ++ i)
+			for (i = 0; i < now->apply.argc; ++ i)
 			{
-				ast_stack[size - i - 2] = apply->args[i];
+				ast_stack[size - i - 2] = now->apply.args[i];
 				level_stack[size - i - 2] = indent + 1;
 			}
 
@@ -201,27 +207,26 @@ ast_dump(ast_node_t root, FILE *out)
 
 		case AST_COND:
 		{
-			ast_cond_t cond = (ast_cond_t)(now + 1);
 			fprintf(out, "If: cond then");
 			size += 2;
 			EXPAND_STACK;
 
-			if (cond->e != NULL)
+			if (now->cond.e != NULL)
 			{
 				fprintf(out, " else");
 				size += 1;
 				EXPAND_STACK;
 			}
 
-			ast_stack[size - 1] = cond->c;
-			ast_stack[size - 2] = cond->t;
+			ast_stack[size - 1] = now->cond.c;
+			ast_stack[size - 2] = now->cond.t;
 			
 			level_stack[size - 1] = indent + 1;
 			level_stack[size - 2] = indent + 1;
 
-			if (cond->e != NULL)
+			if (now->cond.e != NULL)
 			{
-				ast_stack[size - 3] = cond->e;
+				ast_stack[size - 3] = now->cond.e;
 				level_stack[size - 3] = indent + 1;
 			}
 
@@ -230,26 +235,24 @@ ast_dump(ast_node_t root, FILE *out)
 		
 		case AST_SET:
 		{
-			ast_set_t s = (ast_set_t)(now + 1);
-			fprintf(out, "SET: NAME=%s value", xstring_cstr(s->name));
+			fprintf(out, "SET: NAME=%s value", xstring_cstr(now->set.name));
 
 			size += 1;
 			EXPAND_STACK;
 
-			ast_stack[size - 1] = s->value;
+			ast_stack[size - 1] = now->set.value;
 			level_stack[size - 1] = indent + 1;
 			break;
 		}
 
 		case AST_CALLCC:
 		{
-			ast_callcc_t s = (ast_callcc_t)(now + 1);
 			fprintf(out, "CALL/CC:");
 
 			size += 1;
 			EXPAND_STACK;
 
-			ast_stack[size - 1] = s->node;
+			ast_stack[size - 1] = now->callcc.node;
 			level_stack[size - 1] = indent + 1;
 			break;
 		}
@@ -257,6 +260,7 @@ ast_dump(ast_node_t root, FILE *out)
 		default:
 		{
 			fprintf(out, "Unknown AST type");
+			break;
 		}
 		
 		}

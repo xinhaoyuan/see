@@ -10,20 +10,19 @@
 void
 sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 {
-	switch (root->type)
+	switch (root->header.type)
 	{
 
 	case AST_SYMBOL:
 	{
-		as_symbol_t sym = (as_symbol_t)(root + 1);
-		if (sym->type == SYMBOL_GENERAL)
+		if (root->symbol.type == SYMBOL_GENERAL)
 		{
-			root->priv = static_scope_find(sym->str, scope);
+			root->header.priv = static_scope_find(root->symbol.str, scope);
 #if 0
 			static_scope_ref_t ref = root->priv;
 			if (ref == NULL)
-				printf("%s ref to unknown\n", xstring_cstr(sym->str));
-			else printf("%s ref to %d %d\n", xstring_cstr(sym->str), ref->lev_diff, ref->offset);
+				printf("%s ref to unknown\n", xstring_cstr(root->symbol.str));
+			else printf("%s ref to %d %d\n", xstring_cstr(root->symbol.str), ref->lev_diff, ref->offset);
 #endif
 		}
 
@@ -32,12 +31,11 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 
 	case AST_APPLY:
 	{
-		ast_apply_t app = (ast_apply_t)(root + 1);
-		sematic_symref_analyse_internal(app->func, scope);
+		sematic_symref_analyse_internal(root->apply.func, scope);
 		int i;
-		for (i = 0; i != app->argc; ++ i)
+		for (i = 0; i != root->apply.argc; ++ i)
 		{
-			sematic_symref_analyse_internal(app->args[i], scope);
+			sematic_symref_analyse_internal(root->apply.args[i], scope);
 		}
 
 		break;
@@ -45,57 +43,54 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 
 	case AST_SET:
 	{
-		ast_set_t set = (ast_set_t)(root + 1);
-		root->priv = static_scope_find(set->name, scope);
+		root->header.priv = static_scope_find(root->set.name, scope);
 #if 0
 		static_scope_ref_t ref = root->priv;
 		if (ref == NULL)
-			printf("set! %s ref to unknown\n", xstring_cstr(set->name));
-		else printf("set! %s ref to %d %d\n", xstring_cstr(set->name), ref->lev_diff, ref->offset);
+			printf("set! %s ref to unknown\n", xstring_cstr(root->set.name));
+		else printf("set! %s ref to %d %d\n", xstring_cstr(root->set.name), ref->lev_diff, ref->offset);
 #endif
 
-		sematic_symref_analyse_internal(set->value, scope);
+		sematic_symref_analyse_internal(root->set.value, scope);
 		
 		break;
 	}
 
 	case AST_COND:
 	{
-		ast_cond_t cond = (ast_cond_t)(root + 1);
-		sematic_symref_analyse_internal(cond->c, scope);
-		sematic_symref_analyse_internal(cond->t, scope);
-		if (cond->e != NULL) sematic_symref_analyse_internal(cond->e, scope);
+		sematic_symref_analyse_internal(root->cond.c, scope);
+		sematic_symref_analyse_internal(root->cond.t, scope);
+		if (root->cond.e != NULL) sematic_symref_analyse_internal(root->cond.e, scope);
 		
 		break;
 	}
 
 	case AST_LAMBDA:
 	{
-		ast_lambda_t lambda = (ast_lambda_t)(root + 1);
 		scope = static_scope_push(root, scope);
-		sematic_symref_analyse_internal(lambda->proc, scope);
-		scope = static_scope_pop(scope);
+		sematic_symref_analyse_internal(root->lambda.proc, scope);
+		scope = static_scope_pop(root, scope);
 		
 		break;
 	}
 
 	case AST_WITH:
 	{
-		ast_with_t with = (ast_with_t)(root + 1);
 		scope = static_scope_push(root, scope);
-		sematic_symref_analyse_internal(with->proc, scope);
-		scope = static_scope_pop(scope);
+		sematic_symref_analyse_internal(root->with.proc, scope);
+		scope = static_scope_pop(root, scope);
 
 		break;
 	}
 
 	case AST_PROC:
 	{
-		ast_proc_t proc = (ast_proc_t)(root + 1);
-		int i;
-		for (i = 0; i != proc->count; ++ i)
+		ast_node_t cur = root->proc.head;
+		while (cur != NULL)
 		{
-			sematic_symref_analyse_internal(proc->nodes[i], scope);
+			sematic_symref_analyse_internal(cur, scope);
+			cur = cur->header.next;
+			if (cur == root->proc.head) cur = NULL;
 		}
 		
 		break;
@@ -103,11 +98,12 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 
 	case AST_AND:
 	{
-		ast_and_t and = (ast_and_t)(root + 1);
-		int i;
-		for (i = 0; i != and->count; ++ i)
+		ast_node_t cur = root->s_and.head;
+		while (cur != NULL)
 		{
-			sematic_symref_analyse_internal(and->nodes[i], scope);
+			sematic_symref_analyse_internal(cur, scope);
+			cur = cur->header.next;
+			if (cur == root->s_and.head) cur = NULL;
 		}
 
 		break;
@@ -115,11 +111,12 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 
 	case AST_OR:
 	{
-		ast_or_t or = (ast_or_t)(root + 1);
-		int i;
-		for (i = 0; i != or->count; ++ i)
+		ast_node_t cur = root->s_or.head;
+		while (cur != NULL)
 		{
-			sematic_symref_analyse_internal(or->nodes[i], scope);
+			sematic_symref_analyse_internal(cur, scope);
+			cur = cur->header.next;
+			if (cur == root->s_or.head) cur = NULL;
 		}
 
 		break;
@@ -127,8 +124,7 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 
 	case AST_CALLCC:
 	{
-		ast_callcc_t c = (ast_callcc_t)(root + 1);
-		sematic_symref_analyse_internal(c->node, scope);
+		sematic_symref_analyse_internal(root->callcc.node, scope);
 
 		break;
 	}

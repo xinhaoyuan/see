@@ -48,17 +48,18 @@ int simple_stream_in(struct simple_stream *stream, int advance)
 
 int main(int argc, const char *args[])
 {
-	if (argc != 2)
+	if (argc != 3)
 	{
-		printf("USAGE: %s file\n", args[0]);
+		printf("USAGE: %s [i|s|r] file\n", args[0]);
 		return -1;
 	}
 	else
 	{
+		char mode = args[1][0];
 		heap_t heap = heap_new();
 	
 		struct simple_stream s;
-		s.file = fopen(args[1], "r");
+		s.file = fopen(args[2], "r");
 		s.buf  = BUF_EMPTY;
 
 		/* Parse input stream into general AST node */
@@ -66,9 +67,28 @@ int main(int argc, const char *args[])
 
 		fclose(s.file);
 
+		if (mode == 'i')
+		{
+			ast_dump(n, stdout);
+			ast_free(n);
+			return 0;
+		}
+		
 		/* Parse the AST symbol */
-		n = ast_syntax_parse(n, 0);
+		ast_syntax_parse(n, 0);
 		sematic_symref_analyse(n);
+
+		if (mode == 's')
+		{
+			ast_dump(n, stdout);
+			ast_free(n);
+			return 0;
+		}
+		else if (mode != 'r')
+		{
+			printf("ERROR OPTION\n");
+			return -1;
+		}
 
 		/* Generate the object which encapsulate the compact AST
 		 * format (expression) to execute */

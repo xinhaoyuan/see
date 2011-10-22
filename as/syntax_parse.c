@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "syntax_parse.h"
-#include "symbol.h"
 
 #define TOKEN_LAMBDA	"lambda"
 #define TOKEN_AND		"and"
@@ -13,86 +12,92 @@
 #define TOKEN_COND		"if"
 #define TOKEN_CALLCC    "call/cc"
 
-ast_node_t
+/* Parse the ast tree */
+/* Return 0 means success */
+int
 ast_syntax_parse(ast_node_t root, int tail)
 {
-	if (root->type != AST_GENERAL)
+	/* parse only unparsed list */
+	if (root->header.type != AST_GENERAL)
+		return 0;
+
+	if (root->general.head == NULL) // ()
 	{
-		return root;
-	}
-
-	ast_general_t g = (ast_general_t)(root + 1);
-	if (g->right == g) // ()
-	{
-		root = (ast_node_t)realloc(root, sizeof(struct ast_header_s) + sizeof(struct as_symbol_s));
-		as_symbol_t s = (as_symbol_t)(root + 1);
-
-		root->type = AST_SYMBOL;
-		root->parent = NULL;
-		root->next = NULL;
-
-		s->type = SYMBOL_NULL;
+		root->header.type = AST_SYMBOL;
+		root->symbol.type = SYMBOL_NULL;
 		
-		return root;
+		return 0;
 	}
 
-	ast_node_t result = NULL;
-	ast_general_t h = g->right;
+	ast_node_t h = root->general.head;
 
 	int succ = 1;
-	as_symbol_t s = NULL;
-	if (h->node->type == AST_SYMBOL)
-	{
-		s = (as_symbol_t)(h->node + 1);
-		if (s->type != SYMBOL_GENERAL) s = NULL;
-	}
+	/* The head symbol */
+	xstring_t s = NULL;
+	if (h->header.type == AST_SYMBOL && h->symbol.type == SYMBOL_GENERAL)
+		s = h->symbol.str;
+
+#define PROCESS_LIST(HEAD, TAIL, TAILFLAG)								\
+	do																	\
+	{																	\
+		ast_node_t cur = (HEAD);										\
+		int tail = 0;													\
+		while (!tail)													\
+		{																\
+			tail = cur->header.next == (TAIL);							\
+			if (ast_syntax_parse(cur,									\
+								 (TAILFLAG) && tail) != 0) succ = 0;	\
+			cur = cur->header.next;										\
+		}																\
+	} while (0)
+		
+	
 
 	/* Process LAMBDA */
-	if (s != NULL && xstring_equal_cstr(s->str, TOKEN_LAMBDA, -1))
+	if (s != NULL && xstring_equal_cstr(s, TOKEN_LAMBDA, -1))
 	{
-		ast_general_t args_list = h->right;
-		ast_general_t body_head = args_list->right;
-		int arg_count;
+		ast_node_t args_list = h->header.next;
+		ast_node_t body_head = args_list->header.next;
+		int args_count;
 		
-		if (args_list == g || body_head == g)
+		if (args_list == h || body_head == h)
 		{
 			fprintf(stderr, "BAD SYNTAX FOR LAMBDA\n");
 			succ = 0;
 		}
-		else if (args_list->node->type != AST_GENERAL)
+		else if (args_list->header.type != AST_GENERAL)
 		{
 			fprintf(stderr, "BAD ARGS POSITION\n");
 			succ = 0;
 		}
 		else
 		{
-			ast_general_t a_head = (ast_general_t)(args_list->node + 1);
-			ast_general_t a_now  = a_head->right;
+			ast_node_t a_now = args_list->general.head;
+			args_count = 0;
 			
-			arg_count = 0;
-			
-			while (a_head != a_now)
+			while (a_now != NULL)
 			{
-				++ arg_count;
+				++ args_count;
 				
-				if (a_now->node->type != AST_SYMBOL ||
-					((as_symbol_t)(a_now->node + 1))->type != SYMBOL_GENERAL)
+				if (a_now->header.type != AST_SYMBOL ||
+					a_now->symbol.type != SYMBOL_GENERAL)
 				{
 					fprintf(stderr, "ARG MUST BE SYMBOL\n");
 					succ = 0;
 					break;
 				}
 				
-				a_now = a_now->right;
+				a_now = a_now->header.next;
+				if (a_now == args_list->general.head) break;
 			}
 
-			if (succ && arg_count > 0)
+			if (succ && args_count > 0)
 			{
-				a_now = a_head->left;
-				if (xstring_equal_cstr(((as_symbol_t)(a_now->node + 1))->str, "...", -1))
+				a_now = args_list->general.head->header.prev;
+				if (xstring_equal_cstr(a_now->symbol.str, "...", -1))
 				{
-					arg_count = -arg_count + 1;
-					if (arg_count == 0)
+					args_count = -args_count + 1;
+					if (args_count == 0)
 					{
 						fprintf(stderr, "INVALID ARG LIST FORMAT\n");
 						succ = 0;
@@ -102,488 +107,369 @@ ast_syntax_parse(ast_node_t root, int tail)
 		}
 
 		if (succ)
-		{
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_lambda_s));
-			result->type = AST_LAMBDA;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
+			PROCESS_LIST(body_head, h, 1);
 
-			ast_lambda_t l = (ast_lambda_t)(result + 1);
-			if (arg_count > 0)
+		ast_node_t proc;
+		xstring_t *args;
+		
+		if (succ)
+			succ = !!(proc = (ast_node_t)malloc(sizeof(struct ast_node_s)));
+
+		if (succ)
+		{
+			if (!(succ = !!(args = (xstring_t *)malloc(
+								sizeof(xstring_t) *
+								(args_count > 0 ? args_count : -args_count)))))
+				free(proc);
+		}
+
+		if (succ)
+		{
+			root->header.type = AST_LAMBDA;
+
+			if (args_count > 0)
 			{
-				l->tail_list = 0;
-				l->argc = arg_count;
+				root->lambda.tail_list = 0;
+				root->lambda.argc = args_count;
 			}
 			else
 			{
-				l->tail_list = 1;
-				l->argc = -arg_count;
+				root->lambda.tail_list = 1;
+				root->lambda.argc = -args_count;
 			}
 			
-			l->args = malloc(sizeof(struct xstring_s) * l->argc);
+			root->lambda.args = args;
 
-			ast_general_t a_head = (ast_general_t)(args_list->node + 1);
-			ast_general_t a_now  = a_head->right;
+			ast_node_t a_now = args_list->general.head;
 			int i;
-			for (i = 0; i != l->argc; ++ i)
+			for (i = 0; i != root->lambda.argc; ++ i)
 			{
-				l->args[i] = ((as_symbol_t)(a_now->node + 1))->str;
+				root->lambda.args[i] = a_now->symbol.str;
 				
-				a_now = a_now->right;
-				free(a_now->left);
+				a_now = a_now->header.next;
+				free(a_now->header.prev);
 			}
-			if (a_now != a_head) free(a_now);
+			if (a_now != args_list->general.head) free(a_now);
 
-			l->proc = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_proc_s));
-			l->proc->type = AST_PROC;
-			l->proc->parent = result;
-			l->proc->next = NULL;
-			l->proc->priv = NULL;
+			root->lambda.proc = proc;
+			proc->header.type = AST_PROC;
+			proc->header.prev = proc->header.next = proc;
+			proc->header.priv = NULL;
+			proc->proc.head = body_head;
 			
-			ast_proc_t p = (ast_proc_t)(l->proc + 1);
-			p->count = 0;
-			while (body_head != g)
-			{
-				body_head->node = ast_syntax_parse(body_head->node, body_head->right == g);
-				body_head = body_head->right;
-				
-				++ p->count;
-			}
-
-			body_head = args_list->right;
-			p->nodes = (ast_node_t *)malloc(sizeof(ast_node_t) * p->count);
-			for (i = 0; i != p->count; ++ i)
-			{
-				p->nodes[i] = body_head->node;
-				p->nodes[i]->parent = l->proc;
-				if (i > 0)
-					p->nodes[i - 1]->next = p->nodes[i];
-
-				body_head = body_head->right;
-				free(body_head->left);
-			}
+			body_head->header.prev = h->header.prev;
+			body_head->header.prev->header.next = body_head;
 
 			free(args_list);
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_WITH, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_WITH, -1))
 	{
-		ast_general_t vars_list = h->right;
-		ast_general_t body_head = vars_list->right;
-		int var_count;
+		ast_node_t vars_list = h->header.next;
+		ast_node_t body_head = vars_list->header.next;
+		int vars_count;
 		
-		if (vars_list == g || body_head == g)
+		if (vars_list == h || body_head == h)
 		{
 			fprintf(stderr, "BAD SYNTAX FOR WITH\n");
 			succ = 0;
 		}
-		else if (vars_list->node->type != AST_GENERAL)
+		else if (vars_list->header.type != AST_GENERAL)
 		{
 			fprintf(stderr, "BAD VARS POSITION\n");
 			succ = 0;
 		}
 		else
 		{
-			ast_general_t v_head = (ast_general_t)(vars_list->node + 1);
-			ast_general_t v_now  = v_head->right;
+			ast_node_t v_now  = vars_list->general.head;
 			
-			if (v_head == v_now)
+			if (v_now == NULL)
 			{
 				fprintf(stderr, "BAD VARS LIST\n");
 				succ = 0;
 			}
 			else
 			{
-				var_count = 0;
+				vars_count = 0;
 				
-				while (v_head != v_now)
+				while (v_now != NULL)
 				{
-					++ var_count;
+					++ vars_count;
 					
-					if (v_now->node->type != AST_SYMBOL ||
-						((as_symbol_t)(v_now->node + 1))->type != SYMBOL_GENERAL)
+					if (v_now->header.type != AST_SYMBOL ||
+						v_now->symbol.type != SYMBOL_GENERAL)
 					{
 						fprintf(stderr, "VAR MUST BE SYMBOL\n");
 						succ = 0;
 						break;
 					}
 					
-					v_now = v_now->right;
+					v_now = v_now->header.next;
+					if (v_now == vars_list->general.head) v_now = NULL;
 				}
 			}
 		}
 
 		if (succ)
+			PROCESS_LIST(body_head, h, 1);
+
+		xstring_t *vars;
+		ast_node_t proc;
+
+		if (succ)
+			succ = !!(proc = (ast_node_t)malloc(sizeof(struct ast_node_s)));
+
+		if (succ)
 		{
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_with_s));
-			result->type = AST_WITH;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
+			if (!(succ = !!(vars = (xstring_t *)malloc(
+								sizeof(xstring_t) *
+								vars_count))))
+				free(proc);
+		}
 
-			ast_with_t w = (ast_with_t)(result + 1);
-			w->varc = var_count;
-			w->vars = malloc(sizeof(struct xstring_s) * w->varc);
+		if (succ)
+		{
+			root->header.type = AST_WITH;
 
-			ast_general_t v_head = (ast_general_t)(vars_list->node + 1);
-			ast_general_t v_now  = v_head->right;
+			root->with.varc = vars_count;
+			root->with.vars = vars;
+
+			ast_node_t v_now  = vars_list->general.head;
 			int i;
-			for (i = 0; i != w->varc; ++ i)
+			for (i = 0; i != root->with.varc; ++ i)
 			{
-				w->vars[i] = ((as_symbol_t)(v_now->node + 1))->str;
+				root->with.vars[i] = v_now->symbol.str;
 				
-				v_now = v_now->right;
-				free(v_now->left);
+				v_now = v_now->header.next;
+				free(v_now->header.prev);
 			}
-
-			w->proc = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_proc_s));
-			w->proc->type = AST_PROC;
-			w->proc->parent = result;
-			w->proc->next = NULL;
-			w->proc->priv = NULL;
 			
-			ast_proc_t p = (ast_proc_t)(w->proc + 1);
-			p->count = 0;
-			while (body_head != g)
-			{
-				body_head->node = ast_syntax_parse(body_head->node, tail && body_head->right == g);
-				body_head = body_head->right;
-				
-				++ p->count;
-			}
+			root->with.proc = proc;
+			proc->header.type = AST_PROC;
+			proc->header.prev = proc->header.next = proc;
+			proc->header.priv = NULL;
+			proc->proc.head = body_head;
 
-			body_head = vars_list->right;
-			p->nodes = (ast_node_t *)malloc(sizeof(ast_node_t) * p->count);
-			for (i = 0; i != p->count; ++ i)
-			{
-				p->nodes[i] = body_head->node;
-				p->nodes[i]->parent = w->proc;
-				if (i > 0)
-					p->nodes[i - 1]->next =	p->nodes[i];
-
-				body_head = body_head->right;
-				free(body_head->left);
-			}
+			body_head->header.prev = h->header.prev;
+			body_head->header.prev->header.next = body_head;
 
 			free(vars_list);
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_COND, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_COND, -1))
 	{
-		ast_general_t c = h->right;
-		ast_general_t t = c->right;
-		ast_general_t e = t->right;
+		ast_node_t c = h->header.next;
+		ast_node_t t = c->header.next;
+		ast_node_t e = t->header.next;
 
-		if (c == g || t == g || (e != g && e->right != g))
+		if (c == h || t == h || (e != h && e->header.next != h))
 		{
 			fprintf(stderr, "Invalid format for IF\n");
 			succ = 0;
 		}
 
 		if (succ)
+			succ = !ast_syntax_parse(c, 0);
+
+		if (succ)
+			succ = !ast_syntax_parse(t, tail);
+
+		if (succ && e != h)
+			succ = !ast_syntax_parse(e, tail);
+
+		if (succ)
 		{
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_cond_s));
-			result->type = AST_COND;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
+			root->header.type = AST_COND;
 			
-			ast_cond_t i = (ast_cond_t)(result + 1);
+			c->header.prev = c->header.next = c;
+			t->header.prev = t->header.next = t;
 
-			i->c = ast_syntax_parse(c->node, 0);
-			i->t = ast_syntax_parse(t->node, tail);
-			free(c);
-			free(t);
+			root->cond.c = c;
+			root->cond.t = t;
 
-			i->c->parent = result;
-			i->c->next   = NULL;
-			i->t->parent = result;
-			i->t->next   = NULL;
-						
-
-			if (e == g)
-				i->e = NULL;
+			if (e == h)
+				root->cond.e = NULL;
 			else
 			{
-				i->e = ast_syntax_parse(e->node, tail);
-				free(e);
-
-				i->e->parent = result;
-				i->e->next   = NULL;
+				e->header.prev = e->header.next = e;
+				root->cond.e = e;
 			}
 			
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_SET, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_SET, -1))
 	{
-		ast_general_t n = h->right;
-		ast_general_t v = n->right;
+		ast_node_t n = h->header.next;
+		ast_node_t v = n->header.next;
 
-		if (n == g || v == g || v->right != g)
+		if (n == h || v == h || v->header.next != h)
 		{
 			
 			succ = 0;
 			/* TODO ERROR */
 		}
-		else if (n->node->type != AST_SYMBOL ||
-				 ((as_symbol_t)(n->node + 1))->type != SYMBOL_GENERAL)
+		else if (n->header.type != AST_SYMBOL ||
+				 n->symbol.type != SYMBOL_GENERAL)
 		{
 			succ = 0;
 			/* TODO ERROR */
 		}
 
 		if (succ)
+			succ = !ast_syntax_parse(v, 0);
+		
+		if (succ)
 		{
-			result = malloc(sizeof(struct ast_header_s) + sizeof(struct ast_set_s));
-			result->type = AST_SET;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
+			root->header.type = AST_SET;
 			
-			ast_set_t s = (ast_set_t)(result + 1);
-			
-			s->name = ((as_symbol_t)(n->node + 1))->str;
-			s->value = ast_syntax_parse(v->node, 0);
-			s->value->parent = result;
-			s->value->next = NULL;
-			s->value->priv = NULL;
+			root->set.name = n->symbol.str;
+			v->header.next = v->header.prev = v;
+			root->set.value = v;
 
 			free(n);
-			free(v);
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_BEGIN, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_BEGIN, -1))
 	{
-		int s_count = 0;
-		ast_general_t s_now = h->right;
+		ast_node_t s_now = h->header.next;
 
-		if (s_now == g)
+		if (s_now == h)
 		{
 			fprintf(stderr, "not empty for begin\n");
 			succ = 0;
 		}
 
 		if (succ)
+			PROCESS_LIST(s_now, h, tail);
+		
+		if (succ)
 		{
-			
-			while (s_now != g)
-			{
-				++ s_count;
-				s_now = s_now->right;
-			}
-			
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_proc_s));
-			ast_proc_t p = (ast_proc_t)(result + 1);
-			
-			result->type = AST_PROC;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
-			
-			p->count = s_count;
-			p->nodes = (ast_node_t *)malloc(sizeof(ast_node_t) * p->count);
-			
-			s_now = h->right;
-			int i;
-			for (i = 0; i != p->count; ++ i)
-			{
-				p->nodes[i] = ast_syntax_parse(s_now->node, tail && s_now->right == g);
-				p->nodes[i]->parent = result;
-				if (i > 0)
-					p->nodes[i - 1]->next = p->nodes[i];
-				
-				s_now = s_now->right;
-				free(s_now->left);
-			}
+			root->header.type = AST_PROC;
+			root->proc.head = s_now;
+
+			s_now->header.prev = h->header.prev;
+			s_now->header.prev->header.next = s_now;
 			
 			free(h);
-			free(root);
 		}
 
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_AND, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_AND, -1))
 	{
-		int s_count = 0;
-		ast_general_t s_now = h->right;
+		ast_node_t s_now = h->header.next;
 
-		if (s_now == g)
+		if (s_now == h)
 		{
 			fprintf(stderr, "not empty for and\n");
 			succ = 0;
 		}
 
 		if (succ)
-		{
+			PROCESS_LIST(s_now, h, tail);
 
-			while (s_now != g)
-			{
-				++ s_count;
-				s_now = s_now->right;
-			}
-			
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_and_s));
-			ast_and_t p = (ast_and_t)(result + 1);
-			
-			result->type = AST_AND;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
-			
-			p->count = s_count;
-			p->nodes = (ast_node_t *)malloc(sizeof(ast_node_t) * p->count);
-			
-			s_now = h->right;
-			int i;
-			for (i = 0; i != p->count; ++ i)
-			{
-				p->nodes[i] = ast_syntax_parse(s_now->node, tail && s_now->right == g);
-				p->nodes[i]->parent = result;
-				if (i > 0)
-					p->nodes[i - 1]->next = p->nodes[i];
-				
-				s_now = s_now->right;
-				free(s_now->left);
-			}
+		if (succ)
+		{
+			root->header.type = AST_AND;
+			root->s_and.head = s_now;
+
+			s_now->header.prev = h->header.prev;
+			s_now->header.prev->header.next = s_now;
 			
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_OR, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_OR, -1))
 	{
-		int s_count = 0;
-		ast_general_t s_now = h->right;
+		ast_node_t s_now = h->header.next;
 
-		if (s_now == g)
+		if (s_now == h)
 		{
-			fprintf(stderr, "not empty for or\n");
+			fprintf(stderr, "not empty for and\n");
 			succ = 0;
 		}
 
 		if (succ)
+			PROCESS_LIST(s_now, h, tail);
+		
+		if (succ)
 		{
-			
-			while (s_now != g)
-			{
-				++ s_count;
-				s_now = s_now->right;
-			}
-			
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_or_s));
-			ast_or_t p = (ast_or_t)(result + 1);
-			
-			result->type = AST_OR;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = root->priv;
-			
-			p->count = s_count;
-			p->nodes = (ast_node_t *)malloc(sizeof(ast_node_t) * p->count);
-			
-			s_now = h->right;
-			int i;
-			for (i = 0; i != s_count; ++ i)
-			{
-				p->nodes[i] = ast_syntax_parse(s_now->node, tail && s_now->right == g);
-				p->nodes[i]->parent = result;
-				if (i > 0)
-					p->nodes[i - 1]->next = p->nodes[i];
-				
-				s_now = s_now->right;
-				free(s_now->left);
-			}
+			root->header.type = AST_AND;
+			root->s_and.head = s_now;
+
+			s_now->header.prev = h->header.prev;
+			s_now->header.prev->header.next = s_now;
 			
 			free(h);
-			free(root);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s->str, TOKEN_CALLCC, -1))
+	else if (s != NULL && xstring_equal_cstr(s, TOKEN_CALLCC, -1))
 	{
-		ast_general_t n = h->right;
-		if (n == g || n->right != g)
+		ast_node_t n = h->header.next;
+		if (n == h || n->header.next != h)
 		{
 			fprintf(stderr, "ERROR FORMAT FOR CALL/CC\n");
 			succ = 0;
 		}
 
 		if (succ)
+			succ = !ast_syntax_parse(n, 0);
+		
+		if (succ)
 		{
-			result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_callcc_s));
-			ast_callcc_t c = (ast_callcc_t)(result + 1);
+			root->header.type = AST_CALLCC;
+			n->header.next = n->header.prev = n;
+			root->callcc.node = n;
+			root->callcc.tail = tail;
 
-			result->type = AST_CALLCC;
-			result->parent = NULL;
-			result->next = NULL;
-			result->priv = NULL;
-
-			c->node = ast_syntax_parse(n->node, 0);
-			c->node->parent = result;
-			c->node->next = NULL;
-			c->tail = tail;
-
-			free(n);
 			free(h);
-			free(root);
 		}
 	}
 	else s = NULL;
 
+	if (s != NULL) return !succ;
 	/* PROCESS APPLY */
-	if (s == NULL)
-	{
-		int a_count = 0;
-		ast_general_t a_now = h->right;
 
-		while (a_now != g)
+	int a_count = 0;
+	ast_node_t a_now = h->header.next;
+
+	succ = !ast_syntax_parse(h, 0);
+
+	if (succ)
+	{
+		while (a_now != h)
 		{
 			++ a_count;
-			a_now = a_now->right;
+			if (ast_syntax_parse(a_now, 0)) succ = 0;
+			a_now = a_now->header.next;
 		}
+	}
 
-		result = (ast_node_t)malloc(sizeof(struct ast_header_s) + sizeof(struct ast_apply_s));
-		ast_apply_t a = (ast_apply_t)(result + 1);
+	ast_node_t *args = NULL;
+	if (succ && a_count > 0)
+		succ = !!(args = (ast_node_t *)malloc(sizeof(ast_node_t) * a_count));
 
-		result->type = AST_APPLY;
-		result->parent = NULL;
-		result->next = NULL;
-		result->priv = root->priv;
-
-		a->argc = a_count;
-		a->tail = tail;
-		a->func = ast_syntax_parse(h->node, 0);
-		a->func->parent = result;
-
-		a->args = (ast_node_t *)malloc(sizeof(ast_node_t) * a->argc);
+	if (succ)
+	{
+		root->header.type = AST_APPLY;
 		
-		a_now = h->right;
+		root->apply.argc = a_count;
+		root->apply.tail = tail;
+		root->apply.func = h;
+	
+		root->apply.args = args;
+		
+		a_now = h->header.next;
 		int i;
 		for (i = 0; i != a_count; ++ i)
 		{
-			a->args[i] = ast_syntax_parse(a_now->node, 0);
-			a->args[i]->parent = result;
-
-			if (i > 0)
-				a->args[i - 1]->next = a->args[i];
-			else a->func->next = a->args[0];
-
-			a_now = a_now->right;
-			free(a_now->left);
+			root->apply.args[i] = a_now;
+			a_now = a_now->header.next;
 		}
-
-		free(h);
-		free(root);
 	}
 
-	if (succ)
-		return result;
-	else return root;
+	return !succ;
 }

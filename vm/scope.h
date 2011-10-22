@@ -18,6 +18,6 @@ typedef struct static_scope_s *static_scope_t;
 
 scope_ref_t    static_scope_find(xstring_t name, static_scope_t scope);
 static_scope_t static_scope_push(ast_node_t node, static_scope_t scope);
-static_scope_t static_scope_pop(static_scope_t scope);
+static_scope_t static_scope_pop(ast_node_t node, static_scope_t scope);
 
 #endif

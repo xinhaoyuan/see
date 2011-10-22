@@ -10,12 +10,11 @@ static_scope_find(xstring_t name, static_scope_t scope)
 	while (scope != NULL)
 	{
 		ast_node_t node = scope->node;
-		if (node->type == AST_LAMBDA)
+		if (node->header.type == AST_LAMBDA)
 		{
-			ast_lambda_t l = (ast_lambda_t)(node + 1);
-			for (i = 0; i != l->argc; ++ i)
+			for (i = 0; i != node->lambda.argc; ++ i)
 			{
-				if (xstring_equal(l->args[i], name))
+				if (xstring_equal(node->lambda.args[i], name))
 				{
 					scope_ref_t result = (scope_ref_t)malloc(sizeof(scope_ref_s));
 					result->parent_level = lev_diff;
@@ -25,12 +24,11 @@ static_scope_find(xstring_t name, static_scope_t scope)
 				}
 			}
 		}
-		else if (node->type == AST_WITH)
+		else if (node->header.type == AST_WITH)
 		{
-			ast_with_t w = (ast_with_t)(node + 1);
-			for (i = 0; i != w->varc; ++ i)
+			for (i = 0; i != node->with.varc; ++ i)
 			{
-				if (xstring_equal(w->vars[i], name))
+				if (xstring_equal(node->with.vars[i], name))
 				{
 					scope_ref_t result = (scope_ref_t)malloc(sizeof(scope_ref_s));
 					result->parent_level = lev_diff;
@@ -56,15 +54,16 @@ static_scope_push(ast_node_t node, static_scope_t scope)
 	result->dist = NULL;
 	result->parent = scope;
 
-	node->priv = result;
+	node->header.priv = result;
 	return result;
 }
 
 static_scope_t
-static_scope_pop(static_scope_t scope)
+static_scope_pop(ast_node_t node, static_scope_t scope)
 {
 	static_scope_t r = scope->parent;
 	free(scope);
+	node->header.priv = NULL;
 	
 	return r;
 }

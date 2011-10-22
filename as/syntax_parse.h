@@ -3,6 +3,6 @@
 
 #include "ast.h"
 
-ast_node_t ast_syntax_parse(ast_node_t root, int tail);
+int ast_syntax_parse(ast_node_t root, int tail);
 
 #endif
