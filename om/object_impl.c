@@ -5,13 +5,17 @@
 #include "../object.h"
 #include "../vm/io.h"
 
+#define GC_PARAM_0 10240
+#define GC_PARAM_1 10240
+
 /* The definition of heap structure is hidden to user, so we can
  * change the internal implementation unconspicuously */
 
 #define TO_GC(o)      ((gc_header_t)(o) - 1)
 #define TO_OBJECT(gc) ((object_t)((gc_header_t)(gc) + 1))
 
-static char __sa[sizeof(gc_header_s) == GC_HEADER_SPACE ? 0 : -1];
+/* No magic check anymore */
+// static char __sa[sizeof(gc_header_s) == GC_HEADER_SPACE ? 0 : -1] __attribute__((unused));
 
 struct heap_s
 {
@@ -25,39 +29,30 @@ static inline void
 object_free(object_t object)
 {	
 	switch (OBJECT_TYPE(object))
-	{
+	{		
 	case OBJECT_TYPE_STRING:
 		xstring_free(object->string);
-		free(TO_GC(object));
 		break;
 
 	case OBJECT_TYPE_VECTOR:
 		free(object->vector.slot_entry);
-		free(TO_GC(object));
 		break;
 
 	case OBJECT_TYPE_ENVIRONMENT:
 		free(object->environment.slot_entry);
-		free(TO_GC(object));
-
 		break;
 
 	case OBJECT_TYPE_CONTINUATION:
 		free(object->continuation.stack);
-		free(TO_GC(object));
-		
-		break;
-
-	case OBJECT_TYPE_EXECUTION:
-		free(TO_GC(object));
 		break;
 
 	case OBJECT_TYPE_EXTERNAL:
 		if (object->external.free)
 			object->external.free(object);
-		free(TO_GC(object));
 		break;
 	}
+
+	free(TO_GC(object));
 }
 
 heap_t
@@ -74,7 +69,7 @@ heap_new(void)
 
 	/* Initialize counters */
 	result->count = 0;
-	result->threshold = 10240;
+	result->threshold = GC_PARAM_0;
 
 	return result;
 }
@@ -84,11 +79,12 @@ heap_free(heap_t heap)
 {
 	gc_header_t cur_gc;
 	
-	/* Ignore all locked object since they may be hold by external
-	 * prog */
-
-#if 0
-	cur_gc = &heap->locked.next;
+	/* Need to ignore all locked object since they may be hold by external
+	 * prog ??? */
+	/* Currently no */
+	
+#if 1
+	cur_gc = heap->locked.next;
 	while (cur_gc != &heap->locked)
 	{
 		gc_header_t last_gc = cur_gc;
@@ -199,7 +195,7 @@ do_gc(heap_t heap)
 		case OBJECT_TYPE_CONTINUATION:
 		{
 			int i;
-			for (i = 0; i != now->continuation.stack_count; ++ i)
+			for (i = 0; i != now->continuation.stack_count - 1; ++ i)
 			{
 				exqueue_enqueue(&q, now->continuation.stack[i]);
 			}
@@ -256,9 +252,9 @@ do_gc(heap_t heap)
 			
 			-- heap->count;
 		}
-		
 	}
-	
+
+	if (q.queue) free(q.queue);
 	return;
 }
 
@@ -269,8 +265,7 @@ heap_object_new(heap_t heap)
 	{
 		do_gc(heap);
 		/* Hardcoded rule for recalculation */
-		heap->threshold = (heap->count + 10240) << 1;
-
+		heap->threshold = (heap->count + GC_PARAM_1) << 1;
 #if GC_DEBUG
 		fprintf(stderr, "DEBUG: gc object count: %d\n", heap->count);
 #endif
@@ -345,8 +340,9 @@ continuation_from_handle(heap_t heap, object_t handle)
 	object_t prog = heap_object_new(heap);
 	prog->continuation.exp = handle_expression_get(handle);
 	prog->continuation.env = OBJECT_NULL;
-	prog->continuation.stack_count = 0;
-	prog->continuation.stack = NULL;
+	prog->continuation.stack_count = 1;
+	prog->continuation.stack = (object_t *)malloc(sizeof(object_t));
+	prog->continuation.stack[0] = (object_t)((unsigned int)(prog->continuation.exp->depth));
 	OBJECT_TYPE_INIT(prog, OBJECT_TYPE_CONTINUATION);
 
 	return prog;
@@ -380,4 +376,10 @@ heap_execution_free(execution_t ex)
 	free(ex->stack);
 	heap_detach((object_t)ex);
 	free(TO_GC(ex));
+}
+
+void
+heap_object_free(heap_t heap, object_t object)
+{
+	heap_unprotect(heap, object);
 }

@@ -50,8 +50,6 @@ ast_syntax_parse(ast_node_t root, int tail)
 			cur = cur->header.next;										\
 		}																\
 	} while (0)
-		
-	
 
 	/* Process LAMBDA */
 	if (s != NULL && xstring_equal_cstr(s, TOKEN_LAMBDA, -1))
@@ -162,6 +160,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 			free(args_list);
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_WITH, -1))
@@ -256,6 +255,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 			free(vars_list);
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_COND, -1))
@@ -298,6 +298,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			}
 			
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_SET, -1))
@@ -331,6 +332,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 			free(n);
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_BEGIN, -1))
@@ -355,6 +357,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev->header.next = s_now;
 			
 			free(h);
+			xstring_free(s);
 		}
 
 	}
@@ -380,6 +383,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev->header.next = s_now;
 			
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_OR, -1))
@@ -404,6 +408,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev->header.next = s_now;
 			
 			free(h);
+			xstring_free(s);
 		}
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_CALLCC, -1))
@@ -426,48 +431,48 @@ ast_syntax_parse(ast_node_t root, int tail)
 			root->callcc.tail = tail;
 
 			free(h);
+			xstring_free(s);
 		}
 	}
-	else s = NULL;
-
-	if (s != NULL) return !succ;
-	/* PROCESS APPLY */
-
-	int a_count = 0;
-	ast_node_t a_now = h->header.next;
-
-	succ = !ast_syntax_parse(h, 0);
-
-	if (succ)
+	else
 	{
-		while (a_now != h)
+		/* PROCESS APPLY */
+		int a_count = 0;
+		ast_node_t a_now = h->header.next;
+		
+		succ = !ast_syntax_parse(h, 0);
+		
+		if (succ)
 		{
-			++ a_count;
-			if (ast_syntax_parse(a_now, 0)) succ = 0;
-			a_now = a_now->header.next;
+			while (a_now != h)
+			{
+				++ a_count;
+				if (ast_syntax_parse(a_now, 0)) succ = 0;
+				a_now = a_now->header.next;
+			}
 		}
-	}
-
-	ast_node_t *args = NULL;
-	if (succ && a_count > 0)
-		succ = !!(args = (ast_node_t *)malloc(sizeof(ast_node_t) * a_count));
-
-	if (succ)
-	{
-		root->header.type = AST_APPLY;
 		
-		root->apply.argc = a_count;
-		root->apply.tail = tail;
-		root->apply.func = h;
-	
-		root->apply.args = args;
+		ast_node_t *args = NULL;
+		if (succ && a_count > 0)
+			succ = !!(args = (ast_node_t *)malloc(sizeof(ast_node_t) * a_count));
 		
-		a_now = h->header.next;
-		int i;
-		for (i = 0; i != a_count; ++ i)
+		if (succ)
 		{
-			root->apply.args[i] = a_now;
-			a_now = a_now->header.next;
+			root->header.type = AST_APPLY;
+		
+			root->apply.argc = a_count;
+			root->apply.tail = tail;
+			root->apply.func = h;
+			
+			root->apply.args = args;
+			
+			a_now = h->header.next;
+			int i;
+			for (i = 0; i != a_count; ++ i)
+			{
+				root->apply.args[i] = a_now;
+				a_now = a_now->header.next;
+			}
 		}
 	}
 

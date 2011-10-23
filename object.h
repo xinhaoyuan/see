@@ -141,7 +141,8 @@ struct scope_ref_s
 struct expression_s
 {
 	object_t handle;
-	unsigned int type;
+	unsigned short type;
+	unsigned short depth;
 	
 	expression_t parent;
 	expression_t next;
@@ -224,6 +225,7 @@ struct execution_s
 heap_t   heap_new(void);
 void     heap_free(heap_t heap);
 object_t heap_object_new(heap_t heap);
+void     heap_object_free(heap_t heap, object_t object);
 
 /* When create a reference to the object, the object should be protect from the GC collection  */
 void heap_protect_from_gc(heap_t heap, object_t object);

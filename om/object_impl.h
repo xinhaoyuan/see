@@ -22,7 +22,8 @@ struct slot_s
 #define OBJECT_TYPE_INIT(o, t)			\
 	if (IS_OBJECT(o)) ((gc_header_t)(o) - 1)->type = t
 
-#define GC_HEADER_SPACE 16
+/* GC_HEADER_SPACE specify the size of gc_header_s. MAGIC */
+#define GC_HEADER_SPACE 24
 
 struct gc_header_s
 {

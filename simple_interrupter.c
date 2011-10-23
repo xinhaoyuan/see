@@ -7,6 +7,7 @@
 #include "as/simple_parse.h"
 #include "as/syntax_parse.h"
 #include "as/free.h"
+#include "as/dump.h"
 #include "vm/symref.h"
 #include "vm/io.h"
 #include "vm/vm.h"
@@ -47,8 +48,12 @@ int simple_stream_in(struct simple_stream *stream, int advance)
 	return r;
 }
 
+#include <mcheck.h>
+
 int main(int argc, const char *args[])
 {
+	mtrace();
+	
 	if (argc != 3)
 	{
 		printf("USAGE: %s [i|s|r] file\n", args[0]);

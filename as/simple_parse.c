@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "simple_parse.h"
+#include "free.h"
 
 #include "../lib/xstring.h"
 

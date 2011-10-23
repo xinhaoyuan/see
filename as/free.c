@@ -28,7 +28,7 @@ ast_free(ast_node_t node)
 
 	case AST_SYMBOL:
 		xstring_free(node->symbol.str);
-		// if (node->priv != NULL) free(node->priv);
+		if (node->header.priv != NULL) free(node->header.priv);
 		break;
 
 	case AST_APPLY:
@@ -41,7 +41,7 @@ ast_free(ast_node_t node)
 	case AST_SET:
 		xstring_free(node->set.name);
 		ast_free(node->set.value);
-		// if (node->priv != NULL) free(node->priv);
+		if (node->header.priv != NULL) free(node->header.priv);
 		break;
 
 	case AST_COND:
@@ -53,12 +53,14 @@ ast_free(ast_node_t node)
 	case AST_LAMBDA:
 		for (i = 0; i < node->lambda.argc; ++ i)
 			xstring_free(node->lambda.args[i]);
+		free(node->lambda.args);
 		ast_free(node->lambda.proc);
 		break;
 
 	case AST_WITH:
 		for (i = 0; i < node->with.varc; ++ i)
 			xstring_free(node->with.vars[i]);
+		free(node->with.vars);
 		ast_free(node->with.proc);
 		break;
 

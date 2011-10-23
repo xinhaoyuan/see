@@ -3,6 +3,7 @@
 
 #include "vm.h"
 #include "io.h"
+#include "../as/dump.h"
 
 void
 object_dump(object_t o)
@@ -12,7 +13,7 @@ object_dump(object_t o)
 	case ENCODE_SUFFIX_SYMBOL:
 		if (o ==  OBJECT_NULL)
 			printf(" (NULL)");
-		else printf(" (SYMBOL:%08x\n)", o);
+		else printf(" (SYMBOL:%p\n)", o);
 		break;
 
 	case ENCODE_SUFFIX_INT:
@@ -20,7 +21,7 @@ object_dump(object_t o)
 		break;
 
 	case ENCODE_SUFFIX_BOXED:
-		printf(" (BOXED:%08x)", EXTERNAL_UNBOX(o));
+		printf(" (BOXED:%p)", EXTERNAL_UNBOX(o));
 		break;
 		
 	case OBJECT_TYPE_STRING:
@@ -257,11 +258,13 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		{
 		case SYMBOL_NULL:
 			result->type = EXP_TYPE_VALUE;
+			result->depth = 1;
 			result->value = NULL;
 			break;
 				
 		case SYMBOL_GENERAL:
 			result->type = EXP_TYPE_REF;
+			result->depth = 1;
 			if (node->header.priv == NULL)
 			{
 				result->ref.parent_level = -1;
@@ -327,6 +330,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			else scan_int(xstring_cstr(node->symbol.str), &v);
 
 			result->type = EXP_TYPE_VALUE;
+			result->depth = 1;
 			result->value = INT_BOX(v);
 			break;
 		}
@@ -334,6 +338,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		case SYMBOL_STRING:
 		{
 			result->type = EXP_TYPE_VALUE;
+			result->depth = 1;
 			result->value = heap_object_new(heap);
 			result->value->string = xstring_from_cstr(
 				xstring_cstr(node->symbol.str), xstring_len(node->symbol.str));
@@ -362,6 +367,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->closure.child = expression_from_ast_internal(heap, node->lambda.proc, handle, priv);
 		result->closure.child->parent = result;
 		result->closure.child->next = NULL;
+		result->depth = 1;
 		
 		break;
 	}
@@ -375,18 +381,21 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->with.child = expression_from_ast_internal(heap, node->with.proc, handle, priv);
 		result->with.child->parent = result;
 		result->with.child->next = NULL;
+
+		result->depth = result->with.child->depth;
+
 		break;
 	}
 
 
 	case AST_PROC:
 	{
-		int i;
 		ast_node_t cur = node->proc.head;
 		
 		result->type = EXP_TYPE_PROC;
 		expression_t e = result->proc.child =
 			expression_from_ast_internal(heap, cur, handle, priv);
+		result->depth = e->depth;
 
 		cur = cur->header.next;
 		while (cur != node->proc.head)
@@ -394,6 +403,9 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			e->parent = result;
 			e->next = expression_from_ast_internal(heap, cur, handle, priv);
 			e = e->next;
+
+			if (result->depth < e->depth)
+				result->depth = e->depth;
 
 			cur = cur->header.next;
 		}
@@ -405,12 +417,12 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 	case AST_AND:
 	{
-		int i;
 		ast_node_t cur = node->s_and.head;
 		
 		result->type = EXP_TYPE_AND;
 		expression_t e = result->and_exp.child =
 			expression_from_ast_internal(heap, cur, handle, priv);
+		result->depth = e->depth;
 		
 		cur = cur->header.next;
 		while (cur != node->s_and.head)
@@ -418,6 +430,9 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			e->parent = result;
 			e->next = expression_from_ast_internal(heap, cur, handle, priv);
 			e = e->next;
+
+			if (result->depth < e->depth)
+				result->depth = e->depth;
 
 			cur = cur->header.next;
 		}
@@ -429,12 +444,12 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 	case AST_OR:
 	{
-		int i;
 		ast_node_t cur = node->s_or.head;
 		
 		result->type = EXP_TYPE_OR;
 		expression_t e = result->or_exp.child =
 			expression_from_ast_internal(heap, cur, handle, priv);
+		result->depth = e->depth;
 
 		cur = cur->header.next;
 		while (cur != node->s_or.head)
@@ -442,6 +457,9 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 			e->parent = result;
 			e->next = expression_from_ast_internal(heap, cur, handle, priv);
 			e = e->next;
+
+			if (result->depth < e->depth)
+				result->depth = e->depth;
 
 			cur = cur->header.next;
 		}
@@ -460,11 +478,15 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->apply.argc = node->apply.argc;
 		result->apply.tail = node->apply.tail;
 		expression_t e = result->apply.child = expression_from_ast_internal(heap, node->apply.func, handle, priv);
+		result->depth = e->depth;
 		for (i = 0; i < node->apply.argc; ++ i)
 		{
 			e->parent = result;
 			e->next = expression_from_ast_internal(heap, node->apply.args[i], handle, priv);
 			e = e->next;
+
+			if (result->depth < e->depth + i + 1)
+				result->depth = e->depth + i + 1;
 		}
 		e->parent = result;
 		e->next = NULL;
@@ -484,11 +506,17 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->cond.th->parent = result;
 		result->cond.th->next = NULL;
 
+		result->depth = result->cond.cd->depth > result->cond.th->depth ?
+			result->cond.cd->depth : result->cond.th->depth;
+
 		if (node->cond.e != NULL)
 		{
 			result->cond.el = expression_from_ast_internal(heap, node->cond.e, handle, priv);
 			result->cond.el->parent = result;
 			result->cond.el->next = NULL;
+
+			if (result->depth < result->cond.el->depth)
+				result->depth = result->cond.el->depth;
 		}
 		else result->cond.el = NULL;
 
@@ -501,6 +529,8 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->set.exp = expression_from_ast_internal(heap, node->set.value, handle, priv);
 		result->set.exp->parent = result;
 		result->set.exp->next = NULL;
+
+		result->depth = result->set.exp->depth;
 
 		if (node->header.priv == NULL)
 		{
@@ -521,6 +551,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		result->callcc.exp = expression_from_ast_internal(heap, node->callcc.node, handle, priv);
 		result->callcc.exp->parent = result;
 		result->callcc.exp->next = NULL;
+		result->depth = result->callcc.exp->depth + 1;
 		
 		break;
 	}
