@@ -17,7 +17,7 @@ object_dump(object_t o)
 		break;
 
 	case ENCODE_SUFFIX_INT:
-		printf(" %d", INT_UNBOX(o));
+		printf(" %ld", INT_UNBOX(o));
 		break;
 
 	case ENCODE_SUFFIX_BOXED:
@@ -211,10 +211,10 @@ handle_enumerate(object_t object, void *q, void(*enqueue)(void *, object_t))
 
 /* simple routine to scan a integer in a string */
 static int
-scan_int(char *string, int *result)
+scan_int(char *string, see_int_t *result)
 {
 	int sign;
-	int temp;
+	see_int_t temp;
 	
 	switch (*string)
 	{
@@ -278,7 +278,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 		case SYMBOL_NUMERIC:
 		{
-			int v;
+			see_int_t v;
 			
 			if (xstring_cstr(node->symbol.str)[0] == '#')
 			{

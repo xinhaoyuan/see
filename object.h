@@ -18,6 +18,11 @@ typedef execution_s  *execution_t;
 typedef scope_ref_s  *scope_ref_t;
 typedef expression_s *expression_t;
 
+/* The integer inside the object system */
+/* Which may have the same bit width with pointers */
+typedef long          see_int_t;
+typedef unsigned long see_uint_t;
+
 /* The encoding suffix for distinguish object */
 #define ENCODE_SUFFIX_OBJECT 0
 #define ENCODE_SUFFIX_SYMBOL 1
@@ -27,7 +32,7 @@ typedef expression_s *expression_t;
 #define OBJECT_NULL          ((object_t)0x1)
 
 /* Assume that the object pointer is at least aligned by 2 bits */
-#define ENCODE_SUFFIX(object) ((unsigned int)(object) & 0x3)
+#define ENCODE_SUFFIX(object) ((see_uint_t)(object) & 0x3)
 
 /* The object type id */
 #define OBJECT_TYPE_UNINITIALIZED 0
@@ -211,11 +216,11 @@ struct execution_s
 	int      to_push;
 };
 
-#define INT_UNBOX(object)      ((int)(object) >> 2)
-#define INT_BOX(i)             ((object_t)(((i) << 2) | ENCODE_SUFFIX_INT))
+#define INT_UNBOX(object)      ((see_uint_t)(object) >> 2)
+#define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
 
-#define EXTERNAL_UNBOX(object) ((void *)((unsigned int)(object) & ~(unsigned int)0x3))
-#define EXTERNAL_BOX(e)        ((object_t)((unsigned int)(e) | ENCODE_SUFFIX_BOXED))
+#define EXTERNAL_UNBOX(object) ((void *)((see_uint_t)(object) & ~(see_uint_t)0x3))
+#define EXTERNAL_BOX(e)        ((object_t)((see_uint_t)(e) | ENCODE_SUFFIX_BOXED))
 
 #define IS_OBJECT(object)      (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_OBJECT)
 #define IS_INT(object)         (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_INT)
