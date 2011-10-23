@@ -9,7 +9,7 @@ T_CC_FLAGS_OPT ?= -O0 -g
 T_CC_FLAGS     ?= ${T_CC_FLAGS_OPT} -Wall
 
 SRCFILES:= $(shell find . '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g')
-SRCFILES:= $(filter-out simple_interrupter.c, ${SRCFILES})
+SRCFILES:= $(filter-out simple_interpreter.c, ${SRCFILES})
 OBJFILES:= $(addprefix ${T_BASE}/,$(addsuffix .o,$(foreach FILE,${SRCFILES},$(call E_ENCODE,${FILE}))))
 DEPFILES:= $(OBJFILES:.o=.d)
 
@@ -24,7 +24,7 @@ ${T_BASE}/%.o: ${T_BASE}/%.d
 	@echo CC $(call E_DECODE,$*)
 	${V}${CC} $(call E_DECODE,$*) -o $@ ${T_CC_FLAGS} -c
 
-${T_BASE}/comp: simple_interrupter.c ${T_BASE}/see.a
+${T_BASE}/comp: simple_interpreter.c ${T_BASE}/see.a
 	@echo LD $@
 	${V}${CC} $^ -o $@ ${T_CC_FLAGS}
 
@@ -36,4 +36,4 @@ stat-loc:
 	${V}wc ${SRCFILES} -l
 
 clean:
-	-${V}rm -f target/*
+	-${V}rm -f ${T_BASE}/*
