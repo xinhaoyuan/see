@@ -188,7 +188,7 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 	{
 		/* MAGIC HERE @_@ */
 		unsigned int stack_alloc =
-			(unsigned int)func->continuation.stack[func->continuation.stack_count - 1];
+			(unsigned int)((see_uint_t)func->continuation.stack[func->continuation.stack_count - 1]);
 		object_t *stack = (object_t *)malloc(
 			sizeof(object_t) * stack_alloc);
 
@@ -627,7 +627,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 					cont->continuation.stack_count = ex->stack_count + 1;
 					cont->continuation.stack = stack;
 					memcpy(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
-					cont->continuation.stack[ex->stack_count] = (object_t)ex->stack_alloc;
+					cont->continuation.stack[ex->stack_count] = (object_t)((see_uint_t)ex->stack_alloc);
 					OBJECT_TYPE_INIT(cont, OBJECT_TYPE_CONTINUATION);
 					
 					PUSH(ex->value);

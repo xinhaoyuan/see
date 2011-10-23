@@ -342,7 +342,7 @@ continuation_from_handle(heap_t heap, object_t handle)
 	prog->continuation.env = OBJECT_NULL;
 	prog->continuation.stack_count = 1;
 	prog->continuation.stack = (object_t *)malloc(sizeof(object_t));
-	prog->continuation.stack[0] = (object_t)((unsigned int)(prog->continuation.exp->depth));
+	prog->continuation.stack[0] = (object_t)((see_uint_t)(prog->continuation.exp->depth));
 	OBJECT_TYPE_INIT(prog, OBJECT_TYPE_CONTINUATION);
 
 	return prog;

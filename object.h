@@ -20,8 +20,15 @@ typedef expression_s *expression_t;
 
 /* The integer inside the object system */
 /* Which may have the same bit width with pointers */
+#if defined(__i386__)
 typedef long          see_int_t;
 typedef unsigned long see_uint_t;
+#elif defined(__x86_64)
+typedef long long          see_int_t;
+typedef unsigned long long see_uint_t;
+#else
+#error unknown arch
+#endif
 
 /* The encoding suffix for distinguish object */
 #define ENCODE_SUFFIX_OBJECT 0

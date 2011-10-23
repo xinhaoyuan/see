@@ -17,7 +17,11 @@ object_dump(object_t o)
 		break;
 
 	case ENCODE_SUFFIX_INT:
+#if defined(__i386__)
 		printf(" %ld", INT_UNBOX(o));
+#elif defined(__x86_64__)
+		printf(" %lld", INT_UNBOX(o));
+#endif
 		break;
 
 	case ENCODE_SUFFIX_BOXED:
