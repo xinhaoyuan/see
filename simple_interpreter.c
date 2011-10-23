@@ -62,7 +62,6 @@ int main(int argc, const char *args[])
 	else
 	{
 		char mode = args[1][0];
-		heap_t heap = heap_new();
 	
 		struct simple_stream s;
 		s.file = fopen(args[2], "r");
@@ -96,6 +95,7 @@ int main(int argc, const char *args[])
 			return -1;
 		}
 
+		heap_t heap = heap_new();
 		/* Generate the object which encapsulate the compact AST
 		 * format (expression) to execute */
 		object_t handle = handle_from_ast(heap, n);
