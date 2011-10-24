@@ -48,12 +48,8 @@ int simple_stream_in(struct simple_stream *stream, int advance)
 	return r;
 }
 
-#include <mcheck.h>
-
 int main(int argc, const char *args[])
 {
-	mtrace();
-	
 	if (argc != 3)
 	{
 		printf("USAGE: %s [i|s|r] file\n", args[0]);

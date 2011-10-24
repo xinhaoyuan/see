@@ -223,7 +223,7 @@ struct execution_s
 	int      to_push;
 };
 
-#define INT_UNBOX(object)      ((see_uint_t)(object) >> 2)
+#define INT_UNBOX(object)      ((see_int_t)(object) >> 2)
 #define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
 
 #define EXTERNAL_UNBOX(object) ((void *)((see_uint_t)(object) & ~(see_uint_t)0x3))
