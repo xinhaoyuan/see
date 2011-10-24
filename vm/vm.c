@@ -11,38 +11,38 @@
 static inline unsigned int 
 bsr(unsigned int n)
 {
-	 unsigned int result;
-	 asm volatile("bsr %1, %0"
-				  : "=r" (result)
-				  : "r" (n));
-	 return result;
+	unsigned int result;
+	asm volatile("bsr %1, %0"
+				 : "=r" (result)
+				 : "r" (n));
+	return result;
 }
 
 #define TRY_EXPAND(DELTA)												\
 	({																	\
-		int size = ex->stack_count + (DELTA);							\
-		if (ex->stack_alloc < size)										\
+		int __size = ex->stack_count + (DELTA);							\
+		if (ex->stack_alloc < __size)									\
 		{																\
-			int alloc = ex->stack_alloc << 1;							\
-			while (alloc < size) alloc <<= 1;							\
-			object_t *stack = (object_t *)realloc(ex->stack, sizeof(object_t) * alloc);	\
-			if (stack)													\
+			int __alloc = ex->stack_alloc << 1;							\
+			while (__alloc < __size) __alloc <<= 1;						\
+			object_t *__stack = (object_t *)realloc(ex->stack, sizeof(object_t) * __alloc);	\
+			if (__stack)												\
 			{															\
-				ex->stack_alloc = alloc;								\
-				ex->stack = stack;										\
+				ex->stack_alloc = __alloc;								\
+				ex->stack = __stack;									\
 			}															\
 		}																\
-		ex->stack_alloc < size ? -1 : 0;								\
+		ex->stack_alloc < __size ? -1 : 0;								\
 	})
 
-#define PUSH(x)															\
-	do {																\
-		if (ex->stack_count == ex->stack_alloc)							\
-		{																\
-			fprintf(stderr, "ERROR FOR PUSH\n");						\
-			exit(-1);													\
-		}																\
-		ex->stack[ex->stack_count ++] = (x);							\
+#define PUSH(x)										\
+	do {											\
+		if (ex->stack_count == ex->stack_alloc)		\
+		{											\
+			fprintf(stderr, "ERROR FOR PUSH\n");	\
+			exit(-1);								\
+		}											\
+		ex->stack[ex->stack_count ++] = (x);		\
 	} while (0)
 
 #define ERROR_MEMORY    1
@@ -167,8 +167,8 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 			PUSH(OBJECT_NULL);
 		}
 		else if (!(ex->exp->parent->type == EXP_TYPE_APPLY ?
-			   ex->exp->parent->apply.tail :
-			   ex->exp->parent->callcc.tail))
+				   ex->exp->parent->apply.tail :
+				   ex->exp->parent->callcc.tail))
 		{
 			PUSH(EXTERNAL_BOX(ex->exp->parent));
 			PUSH(ex->env);

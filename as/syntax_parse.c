@@ -40,14 +40,14 @@ ast_syntax_parse(ast_node_t root, int tail)
 #define PROCESS_LIST(HEAD, TAIL, TAILFLAG)								\
 	do																	\
 	{																	\
-		ast_node_t cur = (HEAD);										\
-		int tail = 0;													\
-		while (!tail)													\
+		ast_node_t __cur = (HEAD);										\
+		int __tail = 0;													\
+		while (!__tail)													\
 		{																\
-			tail = cur->header.next == (TAIL);							\
-			if (ast_syntax_parse(cur,									\
-								 (TAILFLAG) && tail) != 0) succ = 0;	\
-			cur = cur->header.next;										\
+			__tail = __cur->header.next == (TAIL);						\
+			if (ast_syntax_parse(__cur,									\
+								 (TAILFLAG) && __tail) != 0) succ = 0;	\
+			__cur = __cur->header.next;									\
 		}																\
 	} while (0)
 
@@ -211,7 +211,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 		}
 
 		if (succ)
-			PROCESS_LIST(body_head, h, 1);
+			PROCESS_LIST(body_head, h, tail);
 
 		xstring_t *vars;
 		ast_node_t proc;
