@@ -143,9 +143,9 @@ ast_syntax_parse(ast_node_t root, int tail)
 			for (i = 0; i != root->lambda.argc; ++ i)
 			{
 				root->lambda.args[i] = a_now->symbol.str;
-				
+				ast_node_t last = a_now;
 				a_now = a_now->header.next;
-				free(a_now->header.prev);
+				free(last);
 			}
 			if (a_now != args_list->general.head) free(a_now);
 
@@ -239,9 +239,9 @@ ast_syntax_parse(ast_node_t root, int tail)
 			for (i = 0; i != root->with.varc; ++ i)
 			{
 				root->with.vars[i] = v_now->symbol.str;
-				
+				ast_node_t last = v_now;
 				v_now = v_now->header.next;
-				free(v_now->header.prev);
+				free(last);
 			}
 			
 			root->with.proc = proc;

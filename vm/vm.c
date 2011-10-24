@@ -37,7 +37,7 @@ bsr(unsigned int n)
 
 #define PUSH(x)										\
 	do {											\
-		if (ex->stack_count == ex->stack_alloc)		\
+		if (ex->stack_count >= ex->stack_alloc)		\
 		{											\
 			fprintf(stderr, "ERROR FOR PUSH\n");	\
 			exit(-1);								\
@@ -53,7 +53,6 @@ static int
 apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func, int *ex_argc, object_t **ex_args)
 {
 	object_t  func = ex->stack[ex->stack_count - argc - 1];
-	object_t *args = &ex->stack[ex->stack_count - argc];
 
 	unsigned int type = OBJECT_TYPE(func);
 	switch (type)
@@ -116,15 +115,15 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		{
 			/* Need to fill the new envonment */
 			env->environment.slot_entry = env_slots;
-			if (env->environment.length > argc)
+			if (eargc > argc)
 			{
 				/* Case 1: args not enough */
 				int i;
 				for (i = 0; i < eargc; ++ i)
 				{
 					if (i < argc)
-						SLOT_INIT(env->environment.slot_entry[i], args[i]);
-					else SLOT_INIT(env->environment.slot_entry[i], OBJECT_NULL);
+						SLOT_INIT(env_slots[i], ex->stack[ex->stack_count - argc + i]);
+					else SLOT_INIT(env_slots[i], OBJECT_NULL);
 				}
 
 				heap_object_free(heap, tail_vector);
@@ -136,7 +135,8 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 				int i;
 				for (i = 0; i < env->environment.length - 1; ++ i)
 				{
-					SLOT_INIT(env->environment.slot_entry[i], args[i]);
+					SLOT_INIT(env->environment.slot_entry[i],
+							  ex->stack[ex->stack_count - argc + i]);
 				}
 
 				tail_vector->vector.length     = argc - eargc + 1;
@@ -144,7 +144,8 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 
 				for (i = eargc - 1; i < argc; ++ i)
 				{
-					SLOT_INIT(tail_vector->vector.slot_entry[i - eargc + 1], args[i]);
+					SLOT_INIT(tail_vector->vector.slot_entry[i - eargc + 1],
+							  ex->stack[ex->stack_count - argc + i]);
 				}
 
 				SLOT_INIT(env->environment.slot_entry[eargc - 1], tail_vector);
@@ -202,7 +203,7 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		}
 		else if (argc >= 1)
 		{
-			ex->value = args[argc - 1];
+			ex->value = ex->stack[ex->stack_count - 1];
 			ex->to_push = 1;
 		}
 							
@@ -233,9 +234,10 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		int i;
 		for (i = 0; i != argc; ++ i)
 		{
-			(*ex_args)[i] = args[i];
-			if (IS_OBJECT(args[i]))
-				heap_protect_from_gc(heap, args[i]);
+			object_t arg = ex->stack[ex->stack_count - argc + i];
+			(*ex_args)[i] = arg;
+			if (IS_OBJECT(arg))
+				heap_protect_from_gc(heap, arg);
 		}
 
 		ex->exp = ex->exp->parent;
@@ -250,7 +252,7 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 	case ENCODE_SUFFIX_INT:
 	{
 		/* Internal func */
-		
+		object_t *args = ex->stack + ex->stack_count - argc;
 		switch (INT_UNBOX(func))
 		{
 			
