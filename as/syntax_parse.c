@@ -147,7 +147,12 @@ ast_syntax_parse(ast_node_t root, int tail)
 				a_now = a_now->header.next;
 				free(last);
 			}
-			if (a_now != args_list->general.head) free(a_now);
+			if (a_now != args_list->general.head)
+			{
+				// Free the "..."
+				xstring_free(a_now->symbol.str);
+				free(a_now);
+			}
 
 			root->lambda.proc = proc;
 			proc->header.type = AST_PROC;
