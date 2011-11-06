@@ -4,7 +4,7 @@
 #include "xstring.h"
 
 xstring_t
-xstring_from_cstr(char *cstr, int len)
+xstring_from_cstr(const char *cstr, int len)
 {
 	if (len < 0) len = strlen(cstr);
 	
@@ -19,7 +19,7 @@ xstring_from_cstr(char *cstr, int len)
 }
 
 int
-xstring_equal_cstr(xstring_t string, char *cstr, int len)
+xstring_equal_cstr(xstring_t string, const char *cstr, int len)
 {
 	if (len < 0) len = strlen(cstr);
 

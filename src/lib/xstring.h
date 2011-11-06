@@ -8,8 +8,8 @@ typedef struct xstring_s
 	char *cstr;
 } xstring_s;
 
-xstring_t xstring_from_cstr(char *cstr, int len);
-int       xstring_equal_cstr(xstring_t string, char *cstr, int len);
+xstring_t xstring_from_cstr(const char *cstr, int len);
+int       xstring_equal_cstr(xstring_t string, const char *cstr, int len);
 int       xstring_equal(xstring_t a, xstring_t b);
 char     *xstring_cstr(xstring_t string);
 int       xstring_len(xstring_t string);
