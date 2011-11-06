@@ -81,6 +81,13 @@ void object_type_init(object_t object, int type);
 #define OBJECT_TYPE_INIT(object, type) object_type_init(object, type)
 #endif
 
+struct see_external_type_s
+{
+	const char *name;
+	
+	void(*enumerate)(object_t, void *, void(*)(void *, object_t));
+	void(*free)(object_t);
+};
 
 struct object_s
 {
@@ -124,10 +131,14 @@ struct object_s
 
 		struct
 		{
-			void *priv;
+			struct see_external_type_s *type;
 			
-			void(*enumerate)(object_t, void *, void(*)(void *, object_t));
-			void(*free)(object_t);
+			union
+			{
+				see_int_t   id;
+				see_uint_t uid;
+				void     *priv;
+			};			
 		} external;
 	};
 };

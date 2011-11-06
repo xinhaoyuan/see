@@ -213,6 +213,12 @@ handle_enumerate(object_t object, void *q, void(*enqueue)(void *, object_t))
 	}
 }
 
+static struct see_external_type_s handle_type = {
+	.name      = "see exp handle",
+	.enumerate = handle_enumerate,
+	.free      = handle_free
+};
+
 /* simple routine to scan a integer in a string */
 static int
 scan_int(char *string, see_int_t *result)
@@ -590,10 +596,9 @@ handle_from_ast(heap_t heap, ast_node_t node)
 	priv->objs = objs;
 	priv->exps_count = 0;
 	priv->objs_count = 0;
-	
+
+	handle->external.type = &handle_type;
 	handle->external.priv = priv;
-	handle->external.free = handle_free;
-	handle->external.enumerate = handle_enumerate;
 	
 	expression_t result = expression_from_ast_internal(heap, node, handle, priv);
 	result->parent = NULL;

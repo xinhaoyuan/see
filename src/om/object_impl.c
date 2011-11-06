@@ -47,8 +47,8 @@ object_free(object_t object)
 		break;
 
 	case OBJECT_TYPE_EXTERNAL:
-		if (object->external.free)
-			object->external.free(object);
+		if (object->external.type && object->external.type->free)
+			object->external.type->free(object);
 		break;
 	}
 
@@ -224,8 +224,8 @@ do_gc(heap_t heap)
 		
 		case OBJECT_TYPE_EXTERNAL:
 		{
-			if (now->external.enumerate)
-				now->external.enumerate(now, &q, (void(*)(void *, object_t))&exqueue_enqueue);
+			if (now->external.type && now->external.type->enumerate)
+				now->external.type->enumerate(now, &q, (void(*)(void *, object_t))&exqueue_enqueue);
 			break;
 		}
 
