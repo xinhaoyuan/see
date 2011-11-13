@@ -18,23 +18,6 @@ bsr(unsigned int n)
 	return result;
 }
 
-#define TRY_EXPAND(DELTA)												\
-	({																	\
-		int __size = ex->stack_count + (DELTA);							\
-		if (ex->stack_alloc < __size)									\
-		{																\
-			int __alloc = ex->stack_alloc << 1;							\
-			while (__alloc < __size) __alloc <<= 1;						\
-			object_t *__stack = (object_t *)realloc(ex->stack, sizeof(object_t) * __alloc);	\
-			if (__stack)												\
-			{															\
-				ex->stack_alloc = __alloc;								\
-				ex->stack = __stack;									\
-			}															\
-		}																\
-		ex->stack_alloc < __size ? -1 : 0;								\
-	})
-
 #define PUSH(x)										\
 	do {											\
 		if (ex->stack_count >= ex->stack_alloc)		\
@@ -50,7 +33,7 @@ bsr(unsigned int n)
 #define ERROR_HEAP      3
 
 static int
-apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func, int *ex_argc, object_t **ex_args)
+apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, object_t *ex_args)
 {
 	object_t  func = ex->stack[ex->stack_count - argc - 1];
 
@@ -75,7 +58,7 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 			return -ERROR_HEAP;
 		}
 		
-		if (TRY_EXPAND(-argc + 1 + depth))
+		if (EX_TRY_EXPAND(ex, -argc + 1 + depth))
 		{
 			/* Cannot expand the stack of ex */
 			heap_object_free(heap, tail_vector);
@@ -220,25 +203,23 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 		
 	case OBJECT_TYPE_STRING:
 	{
+		if (*ex_argc < 1) return -ERROR_MEMORY;
 		/* External calls */
-		*ex_args = (object_t *)malloc(sizeof(object_t) * argc);
-
-		if (*ex_args == NULL)
-			return -ERROR_MEMORY;
-		
-		*ex_func = func;
+		ex_args[0] = func;
 		heap_protect_from_gc(heap, func);
 							
-		*ex_argc = argc;
-			
 		int i;
 		for (i = 0; i != argc; ++ i)
 		{
 			object_t arg = ex->stack[ex->stack_count - argc + i];
-			(*ex_args)[i] = arg;
+			if (i + 1 < *ex_argc)
+				ex_args[i + 1] = arg;
+
 			if (IS_OBJECT(arg))
 				heap_protect_from_gc(heap, arg);
 		}
+
+		if (*ex_argc > argc) *ex_argc = argc + 1;
 
 		ex->exp = ex->exp->parent;
 		ex->stack_count -= argc + 1;
@@ -415,62 +396,8 @@ apply_internal(heap_t heap, unsigned int argc, execution_t ex, object_t *ex_func
 }
 
 int 
-vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, execution_t *execution, object_t *ex_func, int *ex_argc, object_t **ex_args)
+vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 {
-	execution_t ex;
-	
-	if (*execution == NULL)
-	{
-		if (!IS_OBJECT(object))
-		{
-			return APPLY_ERROR;
-		}
-		else
-		{
-			ex = *execution = heap_execution_new(heap);
-			if (ex == NULL)
-				return -ERROR_MEMORY;
-			
-			if (TRY_EXPAND(argc + 1)) return -ERROR_MEMORY;
-			
-			PUSH(object);
-			if (IS_OBJECT(object))
-				heap_unprotect(heap, object);
-			int i;
-			for (i = 0; i != argc; ++ i)
-			{
-				PUSH(args[i]);
-				if (IS_OBJECT(args[i]))
-					heap_unprotect(heap, args[i]);
-			}
-			
-			ex->value = OBJECT_NULL;
-			ex->to_push = 0;
-			
-			OBJECT_TYPE_INIT(ex, OBJECT_TYPE_EXECUTION);
-			int r = apply_internal(heap, argc, ex, ex_func, ex_argc, ex_args);
-			if (r > 0) return APPLY_EXTERNAL_CALL;
-			else if (r < 0) return r;
-		}
-	}
-	else
-	{
-		ex = *execution;
-		
-		if (IS_OBJECT(*ex_func))
-			heap_unprotect(heap, *ex_func);
-		
-		int i;
-		for (i = 0; i != *ex_argc; ++ i)
-		{
-			object_t arg = (*ex_args)[i];
-			if (IS_OBJECT(arg))
-				heap_unprotect(heap, arg);
-		}
-
-		free(*ex_args);
-	}
-
 	while (1)
 	{
 		if (ex->to_push)
@@ -480,11 +407,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				if (IS_OBJECT(ex->value))
 					heap_protect_from_gc(heap, ex->value);
 				
-				*ret = ex->value;
-				heap_execution_free(ex);
-
-				*execution = NULL;
-				
+				ex_args[0] = ex->value;
 				return APPLY_EXIT;
 			}
 
@@ -614,29 +537,13 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 
 				case EXP_TYPE_CALLCC:
 				{
-					object_t cont = heap_object_new(heap);
-					if (cont == NULL) return -ERROR_HEAP;
-
-					object_t *stack = (object_t *)malloc(sizeof(object_t) * (ex->stack_count + 1));
-					if (stack == NULL)
-					{
-						heap_object_free(heap, cont);
-						return -ERROR_MEMORY;
-					}
-					
-					cont->continuation.exp = exp_parent;
-					cont->continuation.env = ex->env;
-					cont->continuation.stack_count = ex->stack_count + 1;
-					cont->continuation.stack = stack;
-					memcpy(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
-					cont->continuation.stack[ex->stack_count] = (object_t)((see_uint_t)ex->stack_alloc);
-					OBJECT_TYPE_INIT(cont, OBJECT_TYPE_CONTINUATION);
+					object_t cont = continuation_from_execution(heap, ex);
 					
 					PUSH(ex->value);
 					PUSH(cont);
 					heap_unprotect(heap, cont);
 
-					int r = apply_internal(heap, 1, ex, ex_func, ex_argc, ex_args);
+					int r = apply_internal(heap, ex, 1, ex_argc, ex_args);
 					if (r > 0) return APPLY_EXTERNAL_CALL;
 					else if (r < 0) return r;
 
@@ -646,7 +553,7 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 				case EXP_TYPE_APPLY:
 				{
 					PUSH(ex->value);
-					int r = apply_internal(heap, exp_parent->apply.argc, ex, ex_func, ex_argc, ex_args);
+					int r = apply_internal(heap, ex, exp_parent->apply.argc, ex_argc, ex_args);
 					if (r > 0) return APPLY_EXTERNAL_CALL;
 					else if (r < 0) return r;
 					
@@ -658,9 +565,9 @@ vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, 
 		}
 		else if (ex->exp == NULL)
 		{
-			heap_detach((object_t)&ex);
-			*ret = OBJECT_NULL;
-			return APPLY_EXIT_NO_VALUE;
+			int r = apply_internal(heap, ex, ex->stack_count - 1, ex_argc, ex_args);
+			if (r > 0) return APPLY_EXTERNAL_CALL;
+			else if (r < 0) return r;
 		}
 		else
 		{

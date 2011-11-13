@@ -370,6 +370,30 @@ heap_execution_new(heap_t heap)
 	return ex;
 }
 
+object_t
+continuation_from_execution(heap_t heap, execution_t ex)
+{
+	object_t cont = heap_object_new(heap);
+	if (cont == NULL) return NULL;
+
+	object_t *stack = (object_t *)malloc(sizeof(object_t) * (ex->stack_count + 1));
+	if (stack == NULL)
+	{
+		heap_object_free(heap, cont);
+		return NULL;
+	}
+					
+	cont->continuation.exp = ex->exp->parent;
+	cont->continuation.env = ex->env;
+	cont->continuation.stack_count = ex->stack_count + 1;
+	cont->continuation.stack = stack;
+	memcpy(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
+	cont->continuation.stack[ex->stack_count] = (object_t)((see_uint_t)ex->stack_alloc);
+	OBJECT_TYPE_INIT(cont, OBJECT_TYPE_CONTINUATION);
+
+	return cont;
+}
+
 void
 heap_execution_free(execution_t ex)
 {

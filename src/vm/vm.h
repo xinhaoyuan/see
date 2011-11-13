@@ -7,10 +7,9 @@
 
 #define APPLY_ERROR        -1
 #define APPLY_EXIT          0
-#define APPLY_EXIT_NO_VALUE 1
-#define APPLY_EXTERNAL_CALL 2
+#define APPLY_EXTERNAL_CALL 1
 
-int vm_apply(heap_t heap, object_t object, int argc, object_t *args, object_t *ret, execution_t *execution, object_t *ex_func, int *ex_argc, object_t **ex_args);
+int vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args);
 
 #define FUNC_CAR     1
 #define FUNC_CDR     2

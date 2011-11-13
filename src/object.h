@@ -234,6 +234,23 @@ struct execution_s
 	int      to_push;
 };
 
+#define EX_TRY_EXPAND(EX, DELTA)										\
+	({																	\
+		int __size = (EX)->stack_count + (DELTA);						\
+		if ((EX)->stack_alloc < __size)									\
+		{																\
+			int __alloc = (EX)->stack_alloc << 1;						\
+			while (__alloc < __size) __alloc <<= 1;						\
+			object_t *__stack = (object_t *)realloc((EX)->stack, sizeof(object_t) * __alloc); \
+			if (__stack)												\
+			{															\
+				(EX)->stack_alloc = __alloc;							\
+				(EX)->stack = __stack;									\
+			}															\
+		}																\
+		(EX)->stack_alloc < __size ? -1 : 0;							\
+	})
+
 #define INT_UNBOX(object)      ((see_int_t)(object) >> 2)
 #define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
 
@@ -259,6 +276,7 @@ void heap_detach(object_t object);
 execution_t heap_execution_new(heap_t heap);
 void        heap_execution_free(execution_t ex);
 
+object_t continuation_from_execution(heap_t heap, execution_t ex);
 object_t continuation_from_handle(heap_t heap, object_t handle);
 
 #endif
