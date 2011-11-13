@@ -29,11 +29,16 @@ int  interpreter_init(interpreter_t i, int ex_args_size);
 void interpreter_clear(interpreter_t i);
 
 object_t interpreter_eval(interpreter_t i, stream_in_f f, void *data);
+
+execution_t interpreter_switch(interpreter_t i, execution_t ex);
 /* Detach the current run state of the interpreter into a continuation */
 object_t interpreter_detach(interpreter_t i);
 /* Attach any object to be apply */
 int      interpreter_apply(interpreter_t i, object_t prog, int argc, object_t *args);
 /* Push the interpreter to run */
 int      interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_args);
+
+void interpreter_protect(interpreter_t i, object_t object);
+void interpreter_unprotect(interpreter_t i, object_t object);
 
 #endif

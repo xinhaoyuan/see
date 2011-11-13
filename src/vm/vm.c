@@ -406,7 +406,8 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 			{
 				if (IS_OBJECT(ex->value))
 					heap_protect_from_gc(heap, ex->value);
-				
+
+				*ex_argc = 1;
 				ex_args[0] = ex->value;
 				return APPLY_EXIT;
 			}

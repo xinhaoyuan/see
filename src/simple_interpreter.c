@@ -99,6 +99,7 @@ int main(int argc, const char *args[])
 		int       ex_argc = 0;
 		object_t *ex_args;
 		object_t  ex_ret = NULL;
+		int i;
 		
 		while (1)
 		{
@@ -110,7 +111,6 @@ int main(int argc, const char *args[])
 
 			if (xstring_equal_cstr(ex_args[0]->string, "display", -1))
 			{
-				int i;
 				for (i = 1; i != ex_argc; ++ i)
 				{
 					object_dump(ex_args[i]);
@@ -120,6 +120,9 @@ int main(int argc, const char *args[])
 				ex_ret = OBJECT_NULL;
 			}
 			else ex_ret = OBJECT_NULL;
+
+			for (i = 0; i != ex_argc; ++ i)
+				interpreter_unprotect(interpreter, ex_args[i]);
 		}
 
 		interpreter_clear(interpreter);

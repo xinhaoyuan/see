@@ -73,6 +73,14 @@ interpreter_detach(interpreter_t i)
 	return cont;
 }
 
+execution_t
+interpreter_switch(interpreter_t i, execution_t ex)
+{
+	execution_t tmp = i->ex;
+	i->ex = ex;
+	return tmp;
+}
+
 int
 interpreter_apply(interpreter_t i, object_t prog, int argc, object_t *args)
 {
@@ -110,16 +118,10 @@ int
 interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
 {
 	if (i == NULL) return -1;
-	if (i->ex == NULL) return -1;
-
-	if (*ex_argc > 0 && *ex_args == i->ex_args)
+	if (i->ex == NULL)
 	{
-		int t;
-		for (t = 0; t < *ex_argc; ++ t)
-		{
-			if (IS_OBJECT((*ex_args)[t]))
-				heap_unprotect(i->heap, (*ex_args)[t]);
-		}
+		*ex_argc = 0;
+		return APPLY_EXIT;
 	}
 
 	*ex_argc = i->ex_args_size;
@@ -136,4 +138,18 @@ interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_ar
 	}
 
 	return r;
+}
+
+void
+interpreter_protect(interpreter_t i, object_t object)
+{
+	if (i && i->heap && IS_OBJECT(object))
+		heap_protect_from_gc(i->heap, object);
+}
+
+void
+interpreter_unprotect(interpreter_t i, object_t object)
+{
+	if (i && i->heap && IS_OBJECT(object))
+		heap_unprotect(i->heap, object);
 }
