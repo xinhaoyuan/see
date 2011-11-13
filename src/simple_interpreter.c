@@ -96,7 +96,7 @@ int main(int argc, const char *args[])
 
 		interpreter_apply(interpreter, prog, 0, NULL);
 		
-		int       ex_argc;
+		int       ex_argc = 0;
 		object_t *ex_args;
 		object_t  ex_ret = NULL;
 		
@@ -121,6 +121,8 @@ int main(int argc, const char *args[])
 			}
 			else ex_ret = OBJECT_NULL;
 		}
+
+		interpreter_clear(interpreter);
 
 		break;
 		

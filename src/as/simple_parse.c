@@ -35,6 +35,7 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 	int   token_len;
 	int   token_buf_alloc = 0;
 
+	type = -1;
 	*result = NULL;
 	token_buf = NULL;
 	token_len = 0;

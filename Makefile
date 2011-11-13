@@ -5,7 +5,7 @@ E_ENCODE = $(shell echo $(1) | sed -e 's!_!_1!g' -e 's!/!_2!g')
 E_DECODE = $(shell echo $(1) | sed -e 's!_1!_!g' -e 's!_2!/!g')
 T_BASE   = target
 
-T_CC_FLAGS_OPT ?= -O0 -g
+T_CC_FLAGS_OPT ?= -O0 -g 
 T_CC_FLAGS     ?= ${T_CC_FLAGS_OPT} -Wall
 
 SRCFILES:= $(shell find src '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g')

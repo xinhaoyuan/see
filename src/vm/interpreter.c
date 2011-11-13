@@ -112,6 +112,16 @@ interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_ar
 	if (i == NULL) return -1;
 	if (i->ex == NULL) return -1;
 
+	if (*ex_argc > 0 && *ex_args == i->ex_args)
+	{
+		int t;
+		for (t = 0; t < *ex_argc; ++ t)
+		{
+			if (IS_OBJECT((*ex_args)[t]))
+				heap_unprotect(i->heap, (*ex_args)[t]);
+		}
+	}
+
 	*ex_argc = i->ex_args_size;
 	*ex_args = i->ex_args;
 	
