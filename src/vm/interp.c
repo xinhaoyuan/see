@@ -1,11 +1,11 @@
-#include "interpreter.h"
+#include "interp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 int
-interpreter_init(interpreter_t i, int ex_args_size)
+interp_initialize(interp_t i, int ex_args_size)
 {
 	if (i == NULL) return -1;
 	
@@ -24,25 +24,32 @@ interpreter_init(interpreter_t i, int ex_args_size)
 }
 
 void
-interpreter_clear(interpreter_t i)
+interp_uninitialize(interp_t i)
 {
 	if (i == NULL) return;
 	if (i->ex != NULL) heap_execution_free(i->ex);
-	heap_free(i->heap);
-	free(i->ex_args);
+	if (i->heap != NULL) heap_free(i->heap);
+	if (i->ex_args != NULL) free(i->ex_args);
 }
 
 object_t
-interpreter_eval(interpreter_t i, stream_in_f f, void *data)
+interp_eval(interp_t i, stream_in_f f, void *data)
 {
 	if (i == NULL) return NULL;
 	if (i->heap == NULL) return NULL;
 	
 	/* Parse input stream into general AST node */
 	ast_node_t n = ast_simple_parse_char_stream(f, data);
-		
+
+	if (n == NULL) return NULL;
+	
 	/* Parse the AST symbol */
-	ast_syntax_parse(n, 0);
+	if (ast_syntax_parse(n, 0) != 0)
+	{
+		ast_free(n);
+		return NULL;
+	}
+	
 	sematic_symref_analyse(n);
 
 	/* Generate the object which encapsulate the compact AST
@@ -58,7 +65,7 @@ interpreter_eval(interpreter_t i, stream_in_f f, void *data)
 }
 
 object_t
-interpreter_detach(interpreter_t i)
+interp_detach(interp_t i)
 {
 	if (i == NULL) return NULL;
 	if (i->ex == NULL) return NULL;
@@ -74,7 +81,7 @@ interpreter_detach(interpreter_t i)
 }
 
 execution_t
-interpreter_switch(interpreter_t i, execution_t ex)
+interp_switch(interp_t i, execution_t ex)
 {
 	execution_t tmp = i->ex;
 	i->ex = ex;
@@ -82,7 +89,7 @@ interpreter_switch(interpreter_t i, execution_t ex)
 }
 
 int
-interpreter_apply(interpreter_t i, object_t prog, int argc, object_t *args)
+interp_apply(interp_t i, object_t prog, int argc, object_t *args)
 {
 	if (i == NULL) return -1;
 	if (i->ex != NULL) return -1;
@@ -115,7 +122,7 @@ interpreter_apply(interpreter_t i, object_t prog, int argc, object_t *args)
 }
 
 int
-interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
+interp_run(interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
 {
 	if (i == NULL) return -1;
 	if (i->ex == NULL)
@@ -141,14 +148,14 @@ interpreter_run(interpreter_t i, object_t ex_ret, int *ex_argc, object_t **ex_ar
 }
 
 void
-interpreter_protect(interpreter_t i, object_t object)
+interp_protect(interp_t i, object_t object)
 {
 	if (i && i->heap && IS_OBJECT(object))
 		heap_protect_from_gc(i->heap, object);
 }
 
 void
-interpreter_unprotect(interpreter_t i, object_t object)
+interp_unprotect(interp_t i, object_t object)
 {
 	if (i && i->heap && IS_OBJECT(object))
 		heap_unprotect(i->heap, object);

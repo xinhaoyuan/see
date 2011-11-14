@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "vm/interpreter.h"
+#include "vm/interp.h"
 
 /* This source file shows the usage of SEE interfaces */
 
@@ -51,8 +51,8 @@ int main(int argc, const char *args[])
 	char mode = args[1][0];
 	struct simple_stream s;
 	ast_node_t n;
-	interpreter_s __interpreter;
-	interpreter_t interpreter = &__interpreter;
+	interp_s __interp;
+	interp_t interp = &__interp;
 	object_t prog;
 	
 	switch (mode)
@@ -85,16 +85,16 @@ int main(int argc, const char *args[])
 
 	case 'r':
 
-		interpreter_init(interpreter, 16);
+		interp_initialize(interp, 16);
 		
 		s.file = fopen(args[2], "r");
 		s.buf  = BUF_EMPTY;
 
-		prog = interpreter_eval(interpreter, (stream_in_f)simple_stream_in, &s);
+		prog = interp_eval(interp, (stream_in_f)simple_stream_in, &s);
 
 		fclose(s.file);
 
-		interpreter_apply(interpreter, prog, 0, NULL);
+		interp_apply(interp, prog, 0, NULL);
 		
 		int       ex_argc = 0;
 		object_t *ex_args;
@@ -103,7 +103,7 @@ int main(int argc, const char *args[])
 		
 		while (1)
 		{
-			int r = interpreter_run(interpreter, ex_ret, &ex_argc, &ex_args);
+			int r = interp_run(interp, ex_ret, &ex_argc, &ex_args);
 			prog = NULL;
 			if (r != APPLY_EXTERNAL_CALL)
 				break;
@@ -121,11 +121,12 @@ int main(int argc, const char *args[])
 			}
 			else ex_ret = OBJECT_NULL;
 
+			/* The caller should unprotect the ex arguments by themself */
 			for (i = 0; i != ex_argc; ++ i)
-				interpreter_unprotect(interpreter, ex_args[i]);
+				interp_unprotect(interp, ex_args[i]);
 		}
 
-		interpreter_clear(interpreter);
+		interp_uninitialize(interp);
 
 		break;
 		

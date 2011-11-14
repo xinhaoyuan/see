@@ -349,12 +349,9 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		{
 			result->type = EXP_TYPE_VALUE;
 			result->depth = 1;
-			result->value = heap_object_new(heap);
-			result->value->string = xstring_from_cstr(
-				xstring_cstr(node->symbol.str), xstring_len(node->symbol.str));
+			result->value = priv->objs[priv->objs_count ++];
+			result->value->string = xstring_dup(node->symbol.str);
 			OBJECT_TYPE_INIT(result->value, OBJECT_TYPE_STRING);
-			
-			priv->objs[priv->objs_count ++] = result->value;
 			break;
 		}
 
@@ -585,12 +582,55 @@ handle_from_ast(heap_t heap, ast_node_t node)
 	unsigned int objs_size = 0;
 
 	scan_ast(node, &exps_size, &objs_size);
+
+	object_t handle = heap_object_new(heap);
+	if (handle == NULL) return NULL;
 	
 	expression_t exps = (expression_t)malloc(sizeof(struct expression_s) * exps_size);
-	object_t *objs = (object_t *)malloc(sizeof(object_t) * objs_size);
+	if (exps == NULL)
+	{
+		heap_unprotect(heap, handle);
+		return NULL;
+	}
 	
-	object_t handle = heap_object_new(heap);
+	object_t *objs = (object_t *)malloc(sizeof(object_t) * objs_size);
+	if (objs == NULL)
+	{
+		heap_unprotect(heap, handle);
+		free(exps);
+		return NULL;
+	}
+
+	int i;
+	for (i = 0; i != objs_size; ++ i)
+	{
+		objs[i] = heap_object_new(heap);
+		if (objs[i] == NULL) break;
+	}
+
+	if (i != objs_size)
+	{
+		int j;
+		for (j = 0; j != i; ++ j)
+			heap_unprotect(heap, objs[j]);
+		heap_unprotect(heap, handle);
+		free(objs);
+		free(exps);
+		return NULL;
+	}
+	
 	exp_handle_priv_t priv = (exp_handle_priv_t)malloc(sizeof(struct exp_handle_priv_s));
+	if (priv == NULL)
+	{
+		for (i = 0; i != objs_size; ++ i)
+			heap_unprotect(heap, objs[i]);
+		heap_unprotect(heap, handle);
+		free(objs);
+		free(exps);
+		return NULL;
+	}
+
+	/* Now no allocation failure is possible */
 
 	priv->exps = exps;
 	priv->objs = objs;
@@ -606,7 +646,6 @@ handle_from_ast(heap_t heap, ast_node_t node)
 	
 	OBJECT_TYPE_INIT(handle, OBJECT_TYPE_EXTERNAL);
 
-	int i;
 	for (i = 0; i < priv->objs_count; ++ i)
 	{
 		if (priv->objs[i] &&

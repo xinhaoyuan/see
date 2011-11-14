@@ -6,11 +6,20 @@
 xstring_t
 xstring_from_cstr(const char *cstr, int len)
 {
-	if (len < 0) len = strlen(cstr);
-	
 	xstring_t result = (xstring_t)malloc(sizeof(struct xstring_s));
+	if (result == NULL) return NULL;
+
+	if (len < 0) len = strlen(cstr);	
 	result->cstr = (char *)malloc(sizeof(char) * (len + 1));
+
+	if (result->cstr == NULL)
+	{
+		free(result);
+		return NULL;
+	}
+	
 	result->len = len;
+	result->ref = 1;
 
 	memcpy(result->cstr, cstr, sizeof(char) * len);
 	result->cstr[len] = 0;
@@ -46,9 +55,19 @@ xstring_len(xstring_t string)
 	return string->len;
 }
 
+xstring_t
+xstring_dup(xstring_t string)
+{
+	++ string->ref;
+	return string;
+}
+
 void
 xstring_free(xstring_t string)
 {
-	free(string->cstr);
-	free(string);
+	if (-- string->ref == 0)
+	{
+		free(string->cstr);
+		free(string);
+	}
 }
