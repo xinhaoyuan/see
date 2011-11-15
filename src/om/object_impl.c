@@ -1,9 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+#include "../config.h"
 #include "../object.h"
 #include "../vm/io.h"
+#include "../lib/xstring.h"
+
 
 #define GC_PARAM_0 10240
 #define GC_PARAM_1 10240
@@ -35,15 +34,15 @@ object_free(object_t object)
 		break;
 
 	case OBJECT_TYPE_VECTOR:
-		free(object->vector.slot_entry);
+		SEE_FREE(object->vector.slot_entry);
 		break;
 
 	case OBJECT_TYPE_ENVIRONMENT:
-		free(object->environment.slot_entry);
+		SEE_FREE(object->environment.slot_entry);
 		break;
 
 	case OBJECT_TYPE_CONTINUATION:
-		free(object->continuation.stack);
+		SEE_FREE(object->continuation.stack);
 		break;
 
 	case OBJECT_TYPE_EXTERNAL:
@@ -52,13 +51,13 @@ object_free(object_t object)
 		break;
 	}
 
-	free(TO_GC(object));
+	SEE_FREE(TO_GC(object));
 }
 
 heap_t
 heap_new(void)
 {
-	heap_t result = (heap_t)malloc(sizeof(struct heap_s));
+	heap_t result = (heap_t)SEE_MALLOC(sizeof(struct heap_s));
 
 	/* Initialize the gc header list */
 	result->managed.prev =
@@ -103,7 +102,7 @@ heap_free(heap_t heap)
 		object_free(TO_OBJECT(last_gc));
 	}
 
-	free(heap);
+	SEE_FREE(heap);
 }
 
 typedef struct exqueue_s
@@ -126,8 +125,8 @@ exqueue_enqueue(exqueue_s *q, object_t o)
 		q->head %= q->alloc;
 		if (q->head == q->tail)
 		{
-			q->queue = (object_t *)realloc(q->queue, sizeof(object_t) * (q->alloc << 1));
-			memcpy(q->queue + q->alloc, q->queue, sizeof(object_t) * q->head);
+			q->queue = (object_t *)SEE_REALLOC(q->queue, sizeof(object_t) * (q->alloc << 1));
+			SEE_MEMCPY(q->queue + q->alloc, q->queue, sizeof(object_t) * q->head);
 			q->head += q->alloc;
 			q->alloc <<= 1;
 		}
@@ -141,7 +140,7 @@ do_gc(heap_t heap)
 	q.alloc = 256;
 	q.head  = 0;
 	q.tail  = 0;
-	q.queue = (object_t *)malloc(sizeof(object_t) * q.alloc);
+	q.queue = (object_t *)SEE_MALLOC(sizeof(object_t) * q.alloc);
 
 	gc_header_t cur_gc = heap->locked.next;
 	while (cur_gc != &heap->locked)
@@ -254,7 +253,7 @@ do_gc(heap_t heap)
 		}
 	}
 
-	if (q.queue) free(q.queue);
+	if (q.queue) SEE_FREE(q.queue);
 	return;
 }
 
@@ -266,14 +265,12 @@ heap_object_new(heap_t heap)
 		do_gc(heap);
 		/* Hardcoded rule for recalculation */
 		heap->threshold = (heap->count + GC_PARAM_1) << 1;
-#if GC_DEBUG
-		fprintf(stderr, "DEBUG: gc object count: %d\n", heap->count);
-#endif
+		WARNING("DEBUG: gc object count: %d\n", heap->count);
 	}
 
 	++ heap->count;
 	
-	gc_header_t result = (gc_header_t)malloc(sizeof(gc_header_s) + sizeof(object_s));
+	gc_header_t result = (gc_header_t)SEE_MALLOC(sizeof(gc_header_s) + sizeof(object_s));
 	result->type = OBJECT_TYPE_UNINITIALIZED;
 	result->mark = 0;
 	
@@ -341,7 +338,7 @@ continuation_from_handle(heap_t heap, object_t handle)
 	prog->continuation.exp = handle_expression_get(handle);
 	prog->continuation.env = OBJECT_NULL;
 	prog->continuation.stack_count = 1;
-	prog->continuation.stack = (object_t *)malloc(sizeof(object_t));
+	prog->continuation.stack = (object_t *)SEE_MALLOC(sizeof(object_t));
 	prog->continuation.stack[0] = (object_t)((see_uint_t)(prog->continuation.exp->depth));
 	OBJECT_TYPE_INIT(prog, OBJECT_TYPE_CONTINUATION);
 
@@ -351,7 +348,7 @@ continuation_from_handle(heap_t heap, object_t handle)
 execution_t
 heap_execution_new(heap_t heap)
 {
-	gc_header_t gc = (gc_header_t)malloc(sizeof(gc_header_s) + sizeof(execution_s));
+	gc_header_t gc = (gc_header_t)SEE_MALLOC(sizeof(gc_header_s) + sizeof(execution_s));
 	execution_t ex = (execution_t)(gc + 1);
 
 	gc->prot_level = 0;
@@ -365,7 +362,7 @@ heap_execution_new(heap_t heap)
 			
 	ex->stack_count = 0;
 	ex->stack_alloc = 1;
-	ex->stack = (object_t *)malloc(sizeof(object_t));
+	ex->stack = (object_t *)SEE_MALLOC(sizeof(object_t));
 
 	return ex;
 }
@@ -376,7 +373,7 @@ continuation_from_execution(heap_t heap, execution_t ex)
 	object_t cont = heap_object_new(heap);
 	if (cont == NULL) return NULL;
 
-	object_t *stack = (object_t *)malloc(sizeof(object_t) * (ex->stack_count + 1));
+	object_t *stack = (object_t *)SEE_MALLOC(sizeof(object_t) * (ex->stack_count + 1));
 	if (stack == NULL)
 	{
 		heap_object_free(heap, cont);
@@ -387,7 +384,7 @@ continuation_from_execution(heap_t heap, execution_t ex)
 	cont->continuation.env = ex->env;
 	cont->continuation.stack_count = ex->stack_count + 1;
 	cont->continuation.stack = stack;
-	memcpy(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
+	SEE_MEMCPY(cont->continuation.stack, ex->stack, sizeof(object_t) * ex->stack_count);
 	cont->continuation.stack[ex->stack_count] = (object_t)((see_uint_t)ex->stack_alloc);
 	OBJECT_TYPE_INIT(cont, OBJECT_TYPE_CONTINUATION);
 
@@ -397,9 +394,9 @@ continuation_from_execution(heap_t heap, execution_t ex)
 void
 heap_execution_free(execution_t ex)
 {
-	free(ex->stack);
+	SEE_FREE(ex->stack);
 	heap_detach((object_t)ex);
-	free(TO_GC(ex));
+	SEE_FREE(TO_GC(ex));
 }
 
 void

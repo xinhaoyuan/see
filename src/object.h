@@ -241,7 +241,7 @@ struct execution_s
 		{																\
 			int __alloc = (EX)->stack_alloc << 1;						\
 			while (__alloc < __size) __alloc <<= 1;						\
-			object_t *__stack = (object_t *)realloc((EX)->stack, sizeof(object_t) * __alloc); \
+			object_t *__stack = (object_t *)SEE_REALLOC((EX)->stack, sizeof(object_t) * __alloc); \
 			if (__stack)												\
 			{															\
 				(EX)->stack_alloc = __alloc;							\

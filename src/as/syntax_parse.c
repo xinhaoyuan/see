@@ -1,7 +1,7 @@
-#include <stdlib.h>
-#include <stdio.h>
-
+#include "../config.h"
 #include "syntax_parse.h"
+
+
 
 #define TOKEN_LAMBDA	"lambda"
 #define TOKEN_AND		"and"
@@ -60,12 +60,12 @@ ast_syntax_parse(ast_node_t root, int tail)
 		
 		if (args_list == h || body_head == h)
 		{
-			fprintf(stderr, "BAD SYNTAX FOR LAMBDA\n");
+			ERROR("BAD SYNTAX FOR LAMBDA\n");
 			succ = 0;
 		}
 		else if (args_list->header.type != AST_GENERAL)
 		{
-			fprintf(stderr, "BAD ARGS POSITION\n");
+			ERROR("BAD ARGS POSITION\n");
 			succ = 0;
 		}
 		else
@@ -80,7 +80,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 				if (a_now->header.type != AST_SYMBOL ||
 					a_now->symbol.type != SYMBOL_GENERAL)
 				{
-					fprintf(stderr, "ARG MUST BE SYMBOL\n");
+					ERROR("ARG MUST BE SYMBOL\n");
 					succ = 0;
 					break;
 				}
@@ -97,7 +97,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 					args_count = -args_count + 1;
 					if (args_count == 0)
 					{
-						fprintf(stderr, "INVALID ARG LIST FORMAT\n");
+						ERROR("INVALID ARG LIST FORMAT\n");
 						succ = 0;
 					}
 				}
@@ -111,14 +111,14 @@ ast_syntax_parse(ast_node_t root, int tail)
 		xstring_t *args;
 		
 		if (succ)
-			succ = !!(proc = (ast_node_t)malloc(sizeof(struct ast_node_s)));
+			succ = !!(proc = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s)));
 
 		if (succ)
 		{
-			if (!(succ = !!(args = (xstring_t *)malloc(
+			if (!(succ = !!(args = (xstring_t *)SEE_MALLOC(
 								sizeof(xstring_t) *
 								(args_count > 0 ? args_count : -args_count)))))
-				free(proc);
+				SEE_FREE(proc);
 		}
 
 		if (succ)
@@ -145,13 +145,13 @@ ast_syntax_parse(ast_node_t root, int tail)
 				root->lambda.args[i] = a_now->symbol.str;
 				ast_node_t last = a_now;
 				a_now = a_now->header.next;
-				free(last);
+				SEE_FREE(last);
 			}
 			if (a_now != args_list->general.head)
 			{
 				// Free the "..."
 				xstring_free(a_now->symbol.str);
-				free(a_now);
+				SEE_FREE(a_now);
 			}
 
 			root->lambda.proc = proc;
@@ -163,8 +163,8 @@ ast_syntax_parse(ast_node_t root, int tail)
 			body_head->header.prev = h->header.prev;
 			body_head->header.prev->header.next = body_head;
 
-			free(args_list);
-			free(h);
+			SEE_FREE(args_list);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -176,12 +176,12 @@ ast_syntax_parse(ast_node_t root, int tail)
 		
 		if (vars_list == h || body_head == h)
 		{
-			fprintf(stderr, "BAD SYNTAX FOR WITH\n");
+			ERROR("BAD SYNTAX FOR WITH\n");
 			succ = 0;
 		}
 		else if (vars_list->header.type != AST_GENERAL)
 		{
-			fprintf(stderr, "BAD VARS POSITION\n");
+			ERROR("BAD VARS POSITION\n");
 			succ = 0;
 		}
 		else
@@ -190,7 +190,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			
 			if (v_now == NULL)
 			{
-				fprintf(stderr, "BAD VARS LIST\n");
+				ERROR("BAD VARS LIST\n");
 				succ = 0;
 			}
 			else
@@ -204,7 +204,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 					if (v_now->header.type != AST_SYMBOL ||
 						v_now->symbol.type != SYMBOL_GENERAL)
 					{
-						fprintf(stderr, "VAR MUST BE SYMBOL\n");
+						ERROR("VAR MUST BE SYMBOL\n");
 						succ = 0;
 						break;
 					}
@@ -222,14 +222,14 @@ ast_syntax_parse(ast_node_t root, int tail)
 		ast_node_t proc;
 
 		if (succ)
-			succ = !!(proc = (ast_node_t)malloc(sizeof(struct ast_node_s)));
+			succ = !!(proc = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s)));
 
 		if (succ)
 		{
-			if (!(succ = !!(vars = (xstring_t *)malloc(
+			if (!(succ = !!(vars = (xstring_t *)SEE_MALLOC(
 								sizeof(xstring_t) *
 								vars_count))))
-				free(proc);
+				SEE_FREE(proc);
 		}
 
 		if (succ)
@@ -246,7 +246,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 				root->with.vars[i] = v_now->symbol.str;
 				ast_node_t last = v_now;
 				v_now = v_now->header.next;
-				free(last);
+				SEE_FREE(last);
 			}
 			
 			root->with.proc = proc;
@@ -258,8 +258,8 @@ ast_syntax_parse(ast_node_t root, int tail)
 			body_head->header.prev = h->header.prev;
 			body_head->header.prev->header.next = body_head;
 
-			free(vars_list);
-			free(h);
+			SEE_FREE(vars_list);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -271,7 +271,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 		if (c == h || t == h || (e != h && e->header.next != h))
 		{
-			fprintf(stderr, "Invalid format for IF\n");
+			ERROR("Invalid format for IF\n");
 			succ = 0;
 		}
 
@@ -302,7 +302,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 				root->cond.e = e;
 			}
 			
-			free(h);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -335,8 +335,8 @@ ast_syntax_parse(ast_node_t root, int tail)
 			v->header.next = v->header.prev = v;
 			root->set.value = v;
 
-			free(n);
-			free(h);
+			SEE_FREE(n);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -346,7 +346,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 		if (s_now == h)
 		{
-			fprintf(stderr, "not empty for begin\n");
+			ERROR("not empty for begin\n");
 			succ = 0;
 		}
 
@@ -361,7 +361,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev = h->header.prev;
 			s_now->header.prev->header.next = s_now;
 			
-			free(h);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 
@@ -372,7 +372,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 		if (s_now == h)
 		{
-			fprintf(stderr, "not empty for and\n");
+			ERROR("not empty for and\n");
 			succ = 0;
 		}
 
@@ -387,7 +387,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev = h->header.prev;
 			s_now->header.prev->header.next = s_now;
 			
-			free(h);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -397,7 +397,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 
 		if (s_now == h)
 		{
-			fprintf(stderr, "not empty for and\n");
+			ERROR("not empty for and\n");
 			succ = 0;
 		}
 
@@ -412,7 +412,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			s_now->header.prev = h->header.prev;
 			s_now->header.prev->header.next = s_now;
 			
-			free(h);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -421,7 +421,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 		ast_node_t n = h->header.next;
 		if (n == h || n->header.next != h)
 		{
-			fprintf(stderr, "ERROR FORMAT FOR CALL/CC\n");
+			ERROR("ERROR FORMAT FOR CALL/CC\n");
 			succ = 0;
 		}
 
@@ -435,7 +435,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			root->callcc.node = n;
 			root->callcc.tail = tail;
 
-			free(h);
+			SEE_FREE(h);
 			xstring_free(s);
 		}
 	}
@@ -459,7 +459,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 		
 		ast_node_t *args = NULL;
 		if (succ && a_count > 0)
-			succ = !!(args = (ast_node_t *)malloc(sizeof(ast_node_t) * a_count));
+			succ = !!(args = (ast_node_t *)SEE_MALLOC(sizeof(ast_node_t) * a_count));
 		
 		if (succ)
 		{

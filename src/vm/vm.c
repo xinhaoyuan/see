@@ -1,8 +1,6 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
+#include "../config.h"
 #include "../object.h"
+
 
 #include "vm.h"
 
@@ -22,7 +20,7 @@ bsr(unsigned int n)
 	do {											\
 		if (ex->stack_count >= ex->stack_alloc)		\
 		{											\
-			fprintf(stderr, "ERROR FOR PUSH\n");	\
+			ERROR("ERROR FOR PUSH\n");	\
 			exit(-1);								\
 		}											\
 		ex->stack[ex->stack_count ++] = (x);		\
@@ -68,7 +66,7 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 
 		if (eargc > 0)
 		{
-			env_slots = (slot_s *)malloc(sizeof(slot_s) * eargc);
+			env_slots = (slot_s *)SEE_MALLOC(sizeof(slot_s) * eargc);
 			if (env_slots == NULL)
 			{
 				/* MALLOC ERROR */
@@ -79,11 +77,11 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 
 			if (eargc <= argc)
 			{
-				tail_slots = (slot_s *)malloc(sizeof(slot_s) * (argc - eargc + 1));
+				tail_slots = (slot_s *)SEE_MALLOC(sizeof(slot_s) * (argc - eargc + 1));
 				if (tail_slots == NULL)
 				{
 					/* MALLOC ERROR */
-					free(env_slots);
+					SEE_FREE(env_slots);
 					heap_object_free(heap, tail_vector);
 					heap_object_free(heap, env);
 					return -ERROR_MEMORY;
@@ -173,7 +171,7 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 		/* MAGIC HERE @_@ */
 		unsigned int stack_alloc =
 			(unsigned int)((see_uint_t)func->continuation.stack[func->continuation.stack_count - 1]);
-		object_t *stack = (object_t *)malloc(
+		object_t *stack = (object_t *)SEE_MALLOC(
 			sizeof(object_t) * stack_alloc);
 
 		if (stack == NULL)
@@ -195,9 +193,9 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 
 		ex->stack_count = func->continuation.stack_count - 1;
 		ex->stack_alloc = stack_alloc;
-		if (ex->stack) free(ex->stack);
+		if (ex->stack) SEE_FREE(ex->stack);
 		ex->stack = stack;
-		memcpy(ex->stack, func->continuation.stack, sizeof(object_t) * ex->stack_count);
+		SEE_MEMCPY(ex->stack, func->continuation.stack, sizeof(object_t) * ex->stack_count);
 	}
 	break;
 		
@@ -311,7 +309,7 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 		{
 			object_t v = heap_object_new(heap);
 			if (v == NULL) return -ERROR_HEAP;
-			slot_s *entry = (slot_s *)malloc(sizeof(slot_s) * argc);
+			slot_s *entry = (slot_s *)SEE_MALLOC(sizeof(slot_s) * argc);
 			if (entry == NULL)
 			{
 				heap_object_free(heap, v);
@@ -620,7 +618,7 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 				object_t env = heap_object_new(heap);
 				if (env == NULL) return -ERROR_HEAP;
 
-				slot_s *entry = (slot_s *)malloc(sizeof(slot_s) * ex->exp->with.varc);
+				slot_s *entry = (slot_s *)SEE_MALLOC(sizeof(slot_s) * ex->exp->with.varc);
 				if (entry == NULL)
 				{
 					heap_object_free(heap, env);

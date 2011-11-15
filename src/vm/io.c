@@ -1,10 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-
+#include "../config.h"
 #include "vm.h"
 #include "io.h"
 #include "../as/dump.h"
 
+
+#if SEE_SYSTEM_IO
 void
 object_dump(object_t o)
 {
@@ -12,71 +12,72 @@ object_dump(object_t o)
 	{
 	case ENCODE_SUFFIX_SYMBOL:
 		if (o ==  OBJECT_NULL)
-			printf(" (NULL)");
-		else printf(" (SYMBOL:%p\n)", o);
+			SEE_PRINTF(" (NULL)");
+		else SEE_PRINTF(" (SYMBOL:%p\n)", o);
 		break;
 
 	case ENCODE_SUFFIX_INT:
 #if defined(__i386__)
-		printf(" %ld", INT_UNBOX(o));
+		SEE_PRINTF(" %ld", INT_UNBOX(o));
 #elif defined(__x86_64__)
-		printf(" %lld", INT_UNBOX(o));
+		SEE_PRINTF(" %lld", INT_UNBOX(o));
 #endif
 		break;
 
 	case ENCODE_SUFFIX_BOXED:
-		printf(" (BOXED:%p)", EXTERNAL_UNBOX(o));
+		SEE_PRINTF(" (BOXED:%p)", EXTERNAL_UNBOX(o));
 		break;
 		
 	case OBJECT_TYPE_STRING:
-		printf(" \"%s\"", xstring_cstr(o->string));
+		SEE_PRINTF(" \"%s\"", xstring_cstr(o->string));
 		break;
 		
 	case OBJECT_TYPE_PAIR:
-		printf(" (");
+		SEE_PRINTF(" (");
 		object_dump(SLOT_GET(o->pair.slot_car));
-		printf(" .");
+		SEE_PRINTF(" .");
 		object_dump(SLOT_GET(o->pair.slot_cdr));
-		printf(" )");
+		SEE_PRINTF(" )");
 		break;
 		
 	case OBJECT_TYPE_VECTOR:
 	{
-		printf(" [");
+		SEE_PRINTF(" [");
 		int i;
 		for (i = 0; i != o->vector.length; ++ i)
 		{
 			object_dump(SLOT_GET(o->vector.slot_entry[i]));
 		}
-		printf(" ]");
+		SEE_PRINTF(" ]");
 		break;
 	}
 	
 	case OBJECT_TYPE_ENVIRONMENT:
-		printf(" (ENVIRONMENT)");
+		SEE_PRINTF(" (ENVIRONMENT)");
 		break;
 		
 	case OBJECT_TYPE_CLOSURE:
-		printf(" (CLOSURE)");
+		SEE_PRINTF(" (CLOSURE)");
 		break;
 		
 	case OBJECT_TYPE_CONTINUATION:
-		printf(" (CONTINUATION)");
+		SEE_PRINTF(" (CONTINUATION)");
 		break;
 		
 	case OBJECT_TYPE_EXECUTION:
-		printf(" (EXECUTION)");
+		SEE_PRINTF(" (EXECUTION)");
 		break;
 		
 	case OBJECT_TYPE_EXTERNAL:
-		printf(" (EXTERNAL)");
+		SEE_PRINTF(" (EXTERNAL)");
 		break;
 		
 	default:
-		printf(" (UNKNOWN)");
+		SEE_PRINTF(" (UNKNOWN)");
 		break;
 	}
 }
+#endif
 
 static void
 scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
@@ -197,9 +198,9 @@ static void
 handle_free(object_t object)
 {
 	exp_handle_priv_t priv = (exp_handle_priv_t)object->external.priv;
-	free(priv->exps);
-	free(priv->objs);
-	free(priv);
+	SEE_FREE(priv->exps);
+	SEE_FREE(priv->objs);
+	SEE_FREE(priv);
 }
 
 static void
@@ -356,7 +357,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 		}
 
 		default:
-			printf("unknown type to translate symbol: %d\n", type);
+			SEE_PRINTF("unknown type to translate symbol: %d\n", type);
 			break;
 			
 		}
@@ -565,8 +566,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
 	default:
 	{
-		printf("unknown type to translate ast: %d\n", node->header.type);
-		ast_dump(node, stderr);
+		ERROR("unknown type to translate ast: %d\n", node->header.type);
 		break;
 	}
 		
@@ -586,18 +586,18 @@ handle_from_ast(heap_t heap, ast_node_t node)
 	object_t handle = heap_object_new(heap);
 	if (handle == NULL) return NULL;
 	
-	expression_t exps = (expression_t)malloc(sizeof(struct expression_s) * exps_size);
+	expression_t exps = (expression_t)SEE_MALLOC(sizeof(struct expression_s) * exps_size);
 	if (exps == NULL)
 	{
 		heap_unprotect(heap, handle);
 		return NULL;
 	}
 	
-	object_t *objs = (object_t *)malloc(sizeof(object_t) * objs_size);
+	object_t *objs = (object_t *)SEE_MALLOC(sizeof(object_t) * objs_size);
 	if (objs == NULL)
 	{
 		heap_unprotect(heap, handle);
-		free(exps);
+		SEE_FREE(exps);
 		return NULL;
 	}
 
@@ -614,19 +614,19 @@ handle_from_ast(heap_t heap, ast_node_t node)
 		for (j = 0; j != i; ++ j)
 			heap_unprotect(heap, objs[j]);
 		heap_unprotect(heap, handle);
-		free(objs);
-		free(exps);
+		SEE_FREE(objs);
+		SEE_FREE(exps);
 		return NULL;
 	}
 	
-	exp_handle_priv_t priv = (exp_handle_priv_t)malloc(sizeof(struct exp_handle_priv_s));
+	exp_handle_priv_t priv = (exp_handle_priv_t)SEE_MALLOC(sizeof(struct exp_handle_priv_s));
 	if (priv == NULL)
 	{
 		for (i = 0; i != objs_size; ++ i)
 			heap_unprotect(heap, objs[i]);
 		heap_unprotect(heap, handle);
-		free(objs);
-		free(exps);
+		SEE_FREE(objs);
+		SEE_FREE(exps);
 		return NULL;
 	}
 

@@ -1,27 +1,26 @@
-#include <stdlib.h>
-#include <string.h>
-
+#include "../config.h"
 #include "xstring.h"
+
 
 xstring_t
 xstring_from_cstr(const char *cstr, int len)
 {
-	xstring_t result = (xstring_t)malloc(sizeof(struct xstring_s));
+	xstring_t result = (xstring_t)SEE_MALLOC(sizeof(struct xstring_s));
 	if (result == NULL) return NULL;
 
-	if (len < 0) len = strlen(cstr);	
-	result->cstr = (char *)malloc(sizeof(char) * (len + 1));
+	if (len < 0) len = SEE_STRLEN(cstr);
+	result->cstr = (char *)SEE_MALLOC(sizeof(char) * (len + 1));
 
 	if (result->cstr == NULL)
 	{
-		free(result);
+		SEE_FREE(result);
 		return NULL;
 	}
 	
 	result->len = len;
 	result->ref = 1;
 
-	memcpy(result->cstr, cstr, sizeof(char) * len);
+	SEE_MEMCPY(result->cstr, cstr, sizeof(char) * len);
 	result->cstr[len] = 0;
 
 	return result;
@@ -30,17 +29,17 @@ xstring_from_cstr(const char *cstr, int len)
 int
 xstring_equal_cstr(xstring_t string, const char *cstr, int len)
 {
-	if (len < 0) len = strlen(cstr);
+	if (len < 0) len = SEE_STRLEN(cstr);
 
 	if (string->len != len) return 0;
-	else return memcmp(string->cstr, cstr, len) == 0;
+	else return SEE_MEMCMP(string->cstr, cstr, len) == 0;
 }
 
 int
 xstring_equal(xstring_t a, xstring_t b)
 {
 	if (a->len != b->len) return 0;
-	else return memcmp(a->cstr, b->cstr, a->len) == 0;
+	else return SEE_MEMCMP(a->cstr, b->cstr, a->len) == 0;
 }
 
 char *
@@ -67,7 +66,7 @@ xstring_free(xstring_t string)
 {
 	if (-- string->ref == 0)
 	{
-		free(string->cstr);
-		free(string);
+		SEE_FREE(string->cstr);
+		SEE_FREE(string);
 	}
 }

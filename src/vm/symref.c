@@ -1,5 +1,4 @@
-#include <stdio.h>
-
+#include "../config.h"
 #include "symref.h"
 #include "scope.h"
 
@@ -18,12 +17,6 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 		if (root->symbol.type == SYMBOL_GENERAL)
 		{
 			root->header.priv = static_scope_find(root->symbol.str, scope);
-#if 0
-			static_scope_ref_t ref = root->priv;
-			if (ref == NULL)
-				printf("%s ref to unknown\n", xstring_cstr(root->symbol.str));
-			else printf("%s ref to %d %d\n", xstring_cstr(root->symbol.str), ref->lev_diff, ref->offset);
-#endif
 		}
 
 		break;
@@ -44,13 +37,6 @@ sematic_symref_analyse_internal(ast_node_t root, static_scope_t scope)
 	case AST_SET:
 	{
 		root->header.priv = static_scope_find(root->set.name, scope);
-#if 0
-		static_scope_ref_t ref = root->priv;
-		if (ref == NULL)
-			printf("set! %s ref to unknown\n", xstring_cstr(root->set.name));
-		else printf("set! %s ref to %d %d\n", xstring_cstr(root->set.name), ref->lev_diff, ref->offset);
-#endif
-
 		sematic_symref_analyse_internal(root->set.value, scope);
 		
 		break;

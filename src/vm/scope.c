@@ -1,6 +1,6 @@
-#include <stdlib.h>
-
+#include "../config.h"
 #include "scope.h"
+
 
 scope_ref_t
 static_scope_find(xstring_t name, static_scope_t scope)
@@ -16,7 +16,7 @@ static_scope_find(xstring_t name, static_scope_t scope)
 			{
 				if (xstring_equal(node->lambda.args[i], name))
 				{
-					scope_ref_t result = (scope_ref_t)malloc(sizeof(scope_ref_s));
+					scope_ref_t result = (scope_ref_t)SEE_MALLOC(sizeof(scope_ref_s));
 					result->parent_level = lev_diff;
 					result->offset = i;
 
@@ -30,7 +30,7 @@ static_scope_find(xstring_t name, static_scope_t scope)
 			{
 				if (xstring_equal(node->with.vars[i], name))
 				{
-					scope_ref_t result = (scope_ref_t)malloc(sizeof(scope_ref_s));
+					scope_ref_t result = (scope_ref_t)SEE_MALLOC(sizeof(scope_ref_s));
 					result->parent_level = lev_diff;
 					result->offset = i;
 
@@ -49,7 +49,7 @@ static_scope_find(xstring_t name, static_scope_t scope)
 static_scope_t
 static_scope_push(ast_node_t node, static_scope_t scope)
 {
-	static_scope_t result = (static_scope_t)malloc(sizeof(struct static_scope_s));
+	static_scope_t result = (static_scope_t)SEE_MALLOC(sizeof(struct static_scope_s));
 	result->node = node;
 	result->dist = NULL;
 	result->parent = scope;
@@ -62,7 +62,7 @@ static_scope_t
 static_scope_pop(ast_node_t node, static_scope_t scope)
 {
 	static_scope_t r = scope->parent;
-	free(scope);
+	SEE_FREE(scope);
 	node->header.priv = NULL;
 	
 	return r;

@@ -1,10 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
-
+#include "../config.h"
 #include "simple_parse.h"
 #include "free.h"
 
 #include "../lib/xstring.h"
+
 
 #define TOKEN_EOF    0
 #define TOKEN_LC     1
@@ -45,8 +44,8 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 	{																	\
 		token_buf_alloc = (token_buf_alloc << 1) + 1;					\
 		if (token_buf == NULL)											\
-			token_buf = (char *)malloc(sizeof(char) * token_buf_alloc); \
-		else token_buf = (char *)realloc(token_buf, sizeof(char) * token_buf_alloc); \
+			token_buf = (char *)SEE_MALLOC(sizeof(char) * token_buf_alloc); \
+		else token_buf = (char *)SEE_REALLOC(token_buf, sizeof(char) * token_buf_alloc); \
 		if (token_buf == NULL) return -1;								\
 	}
 	
@@ -181,7 +180,7 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 	}
 #undef EXPAND_TOKEN
 
-	if (token_buf != NULL) free(token_buf);
+	if (token_buf != NULL) SEE_FREE(token_buf);
 	return type;
 }
 
@@ -208,7 +207,7 @@ ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_n
 	{
 	case TOKEN_SYMBOL:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
 		if (node == NULL) return -1;
 		
 		node->header.type = AST_SYMBOL;
@@ -246,7 +245,7 @@ ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_n
 		
 	case TOKEN_STRING:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
 		if (node == NULL) return -1;
 		
 		node->header.type = AST_SYMBOL;
@@ -260,7 +259,7 @@ ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_n
 		
 	case TOKEN_LC:
 	{
-		node = (ast_node_t)malloc(sizeof(struct ast_node_s));
+		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
 		if (node == NULL) return -1;
 		*result = node;
 		

@@ -1,8 +1,6 @@
+#include "../config.h"
 #include "interp.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 int
 interp_initialize(interp_t i, int ex_args_size)
@@ -13,7 +11,7 @@ interp_initialize(interp_t i, int ex_args_size)
 	i->ex   = NULL;
 	i->prog = NULL;
 	i->ex_args_size = ex_args_size;
-	if ((i->ex_args = (object_t *)malloc(sizeof(object_t) * i->ex_args_size))
+	if ((i->ex_args = (object_t *)SEE_MALLOC(sizeof(object_t) * i->ex_args_size))
 		== NULL)
 	{
 		heap_free(i->heap);
@@ -29,7 +27,7 @@ interp_uninitialize(interp_t i)
 	if (i == NULL) return;
 	if (i->ex != NULL) heap_execution_free(i->ex);
 	if (i->heap != NULL) heap_free(i->heap);
-	if (i->ex_args != NULL) free(i->ex_args);
+	if (i->ex_args != NULL) SEE_FREE(i->ex_args);
 }
 
 object_t
