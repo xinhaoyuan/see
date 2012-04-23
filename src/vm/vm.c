@@ -1,6 +1,5 @@
-#include "../config.h"
+#include <config.h>
 #include "../object.h"
-
 
 #include "vm.h"
 
@@ -394,9 +393,11 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 }
 
 int 
-vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
+vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_flag)
 {
-	while (1)
+	int nonstop = 0;
+	if (stop_flag == NULL) stop_flag = &nonstop;
+	while (!(*stop_flag))
 	{
 		if (ex->to_push)
 		{
@@ -521,6 +522,11 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 
 				case EXP_TYPE_PROC:
 				{
+					if (exp_parent->proc.toplevel)
+					{
+						ex->env = ex->stack[ex->stack_count - 1];
+						--ex->stack_count;
+					}
 					ex->exp = exp_parent;
 					break;
 				}
@@ -643,6 +649,11 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 
 			case EXP_TYPE_PROC:
 			{
+				if (ex->exp->proc.toplevel)
+				{
+					PUSH(ex->env);
+					ex->env = OBJECT_NULL;
+				}
 				ex->exp = ex->exp->proc.child;
 				break;
 			}
@@ -698,4 +709,6 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args)
 			}
 		}
 	}
+
+	return APPLY_LIMIT_EXCEEDED;
 }

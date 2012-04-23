@@ -1,4 +1,4 @@
-#include "../config.h"
+#include <config.h>
 #include "dump.h"
 
 #if SEE_SYSTEM_IO
@@ -125,10 +125,11 @@ ast_dump(ast_node_t root, SEE_FILE_T out)
 			break;
 		}
 
-
 		case AST_PROC:
 		{
-			SEE_FPRINTF(out, "Proc:");
+			if (now->proc.toplevel)
+				SEE_FPRINTF(out, "TopLevel Proc:");
+			else SEE_FPRINTF(out, "Proc:");
 
 			ast_node_t cur = now->proc.head->header.prev;
 			while (cur != NULL)

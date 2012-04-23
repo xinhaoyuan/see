@@ -1,0 +1,7 @@
+(with (a b c)
+      (set! a 0)
+      (set! b (lambda () ("display" a)))
+      (set! c (toplevel (lambda () ("display" a))))
+      (b)
+      (c)
+      )

@@ -1,6 +1,5 @@
-#include "../config.h"
+#include <config.h>
 #include "interp.h"
-
 
 int
 interp_initialize(interp_t i, int ex_args_size)
@@ -134,15 +133,28 @@ interp_run(interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
 	
 	i->ex->value = ex_ret;
 	
-	int r = vm_run(i->heap, i->ex, ex_argc, i->ex_args);
+	int r = APPLY_LIMIT_EXCEEDED;
+	r = vm_run(i->heap, i->ex, ex_argc, i->ex_args, NULL);
 
-	if (r != APPLY_EXTERNAL_CALL)
+	switch (r)
 	{
+	case APPLY_ERROR:
+	case APPLY_EXIT:
 		heap_execution_free(i->ex);
 		i->ex = NULL;
+
+		break;
 	}
 
 	return r;
+}
+
+object_t
+interp_object_new(interp_t i)
+{
+	if (i && i->heap)
+		return heap_object_new(i->heap);
+	else return NULL;
 }
 
 void

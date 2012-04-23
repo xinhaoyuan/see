@@ -19,8 +19,8 @@
 #define SEE_STRLEN  strlen
 #define SEE_MEMCPY  memcpy
 #define SEE_MEMCMP  memcmp
-#define SEE_PRINTF  printf
 #define SEE_FPRINTF fprintf
+#define SEE_PRINTF_ERR(v ...) fprintf(stderr, v)
 typedef FILE *SEE_FILE_T;
 
 #else

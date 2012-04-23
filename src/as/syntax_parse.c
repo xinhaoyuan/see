@@ -1,12 +1,11 @@
-#include "../config.h"
+#include <config.h>
 #include "syntax_parse.h"
-
-
 
 #define TOKEN_LAMBDA	"lambda"
 #define TOKEN_AND		"and"
 #define TOKEN_OR		"or"
 #define TOKEN_BEGIN		"begin"
+#define TOKEN_TOPLEVEL  "toplevel"
 #define TOKEN_WITH		"with"
 #define TOKEN_SET		"set!"
 #define TOKEN_COND		"if"
@@ -158,6 +157,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			proc->header.type = AST_PROC;
 			proc->header.prev = proc->header.next = proc;
 			proc->header.priv = NULL;
+			proc->proc.toplevel = 0;
 			proc->proc.head = body_head;
 			
 			body_head->header.prev = h->header.prev;
@@ -253,6 +253,7 @@ ast_syntax_parse(ast_node_t root, int tail)
 			proc->header.type = AST_PROC;
 			proc->header.prev = proc->header.next = proc;
 			proc->header.priv = NULL;
+			proc->proc.toplevel = 0;
 			proc->proc.head = body_head;
 
 			body_head->header.prev = h->header.prev;
@@ -340,7 +341,8 @@ ast_syntax_parse(ast_node_t root, int tail)
 			xstring_free(s);
 		}
 	}
-	else if (s != NULL && xstring_equal_cstr(s, TOKEN_BEGIN, -1))
+	else if (s != NULL && (xstring_equal_cstr(s, TOKEN_BEGIN, -1) ||
+						   xstring_equal_cstr(s, TOKEN_TOPLEVEL, -1)))
 	{
 		ast_node_t s_now = h->header.next;
 
@@ -356,15 +358,15 @@ ast_syntax_parse(ast_node_t root, int tail)
 		if (succ)
 		{
 			root->header.type = AST_PROC;
+			root->proc.toplevel = xstring_equal_cstr(s, TOKEN_TOPLEVEL, -1);
 			root->proc.head = s_now;
-
+			
 			s_now->header.prev = h->header.prev;
 			s_now->header.prev->header.next = s_now;
 			
 			SEE_FREE(h);
 			xstring_free(s);
 		}
-
 	}
 	else if (s != NULL && xstring_equal_cstr(s, TOKEN_AND, -1))
 	{

@@ -1,4 +1,4 @@
-#include "../config.h"
+#include <config.h>
 #include "../object.h"
 #include "../vm/io.h"
 #include "../lib/xstring.h"
@@ -46,8 +46,7 @@ object_free(object_t object)
 		break;
 
 	case OBJECT_TYPE_EXTERNAL:
-		if (object->external.type && object->external.type->free)
-			object->external.type->free(object);
+		object->external.type->free(object);
 		break;
 	}
 
@@ -223,8 +222,7 @@ do_gc(heap_t heap)
 		
 		case OBJECT_TYPE_EXTERNAL:
 		{
-			if (now->external.type && now->external.type->enumerate)
-				now->external.type->enumerate(now, &q, (void(*)(void *, object_t))&exqueue_enqueue);
+			now->external.type->enumerate(now, &q, (void(*)(void *, object_t))&exqueue_enqueue);
 			break;
 		}
 
@@ -404,3 +402,13 @@ heap_object_free(heap_t heap, object_t object)
 {
 	heap_unprotect(heap, object);
 }
+
+static void dummy_enumerate(object_t object, void *list, void(*list_add)(void *, object_t)) { } 
+static void dummy_free(object_t object) { }
+
+struct see_external_type_s external_type_dummy =
+{
+	.name = "DUMMY",
+	.free = dummy_free,
+	.enumerate = dummy_enumerate,
+};

@@ -89,6 +89,8 @@ struct see_external_type_s
 	void(*free)(object_t);
 };
 
+extern struct see_external_type_s external_type_dummy;
+
 struct object_s
 {
 	union
@@ -182,7 +184,13 @@ struct expression_s
 		struct
 		{
 			expression_t child;
-		} proc, and_exp, or_exp;
+		} and_exp, or_exp;
+
+		struct
+		{
+			int toplevel;
+			expression_t child;
+		} proc;
 
 		struct
 		{
@@ -205,7 +213,7 @@ struct expression_s
 		struct
 		{
 			unsigned int varc;
-			int inherit;
+			int          inherit;
 			expression_t child;
 		} with;
 

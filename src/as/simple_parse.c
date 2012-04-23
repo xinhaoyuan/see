@@ -1,4 +1,4 @@
-#include "../config.h"
+#include <config.h>
 #include "simple_parse.h"
 #include "free.h"
 
@@ -29,159 +29,173 @@
 static int
 parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 {
-	int   type;
-	char *token_buf;
-	int   token_len;
-	int   token_buf_alloc = 0;
+    int   type;
+    char *token_buf;
+    int   token_len;
+    int   token_buf_alloc = 0;
 
-	type = -1;
-	*result = NULL;
-	token_buf = NULL;
-	token_len = 0;
+    type = -1;
+    *result = NULL;
+    token_buf = NULL;
+    token_len = 0;
 
-#define EXPAND_TOKEN													\
-	while (token_buf_alloc < token_len)									\
-	{																	\
-		token_buf_alloc = (token_buf_alloc << 1) + 1;					\
-		if (token_buf == NULL)											\
-			token_buf = (char *)SEE_MALLOC(sizeof(char) * token_buf_alloc); \
-		else token_buf = (char *)SEE_REALLOC(token_buf, sizeof(char) * token_buf_alloc); \
-		if (token_buf == NULL) return -1;								\
-	}
-	
-	while (1)
-	{
-		int now = stream_in(stream, 0);
-		if (now < 0)
-		{
-			if (token_len > 0)
-			{
-				type = TOKEN_SYMBOL;
-				*result = xstring_from_cstr(token_buf, token_len);
-			}
-			else type = TOKEN_EOF;
-			break;
-		}
+#define EXPAND_TOKEN                                                    \
+    while (token_buf_alloc < token_len)                                 \
+    {                                                                   \
+        token_buf_alloc = (token_buf_alloc << 1) + 1;                   \
+        if (token_buf == NULL)                                          \
+            token_buf = (char *)SEE_MALLOC(sizeof(char) * token_buf_alloc); \
+        else token_buf = (char *)SEE_REALLOC(token_buf, sizeof(char) * token_buf_alloc); \
+        if (token_buf == NULL) return -1;                               \
+    }
+    
+    while (1)
+    {
+        int now = stream_in(stream, 0);
+        if (now < 0)
+        {
+            if (token_len > 0)
+            {
+                type = TOKEN_SYMBOL;
+                *result = xstring_from_cstr(token_buf, token_len);
+            }
+            else type = TOKEN_EOF;
+            break;
+        }
 
-		if (CHAR_IS_SEPARATOR(now))
-		{
-			while (1)
-			{
-				stream_in(stream, 1);
-				now = stream_in(stream, 0);
-				if (CHAR_IS_SEPARATOR(now)) continue;
-				break;
-			}
-			
-			if (token_len > 0)
-			{
-				type = TOKEN_SYMBOL;
-				*result = xstring_from_cstr(token_buf, token_len);
-				break;
-			}
-			else if (now < 0) break;
-		}
+        if (CHAR_IS_SEPARATOR(now))
+        {
+            while (1)
+            {
+                stream_in(stream, 1);
+                now = stream_in(stream, 0);
+                if (CHAR_IS_SEPARATOR(now)) continue;
+                break;
+            }
+            
+            if (token_len > 0)
+            {
+                type = TOKEN_SYMBOL;
+                *result = xstring_from_cstr(token_buf, token_len);
+                break;
+            }
+            else if (now < 0) break;
+        }
 
-		if (now == TOKEN_CHAR_LC || now == TOKEN_CHAR_RC)
-		{
-			if (token_len > 0)
-			{
-				type = TOKEN_SYMBOL;
-				*result = xstring_from_cstr(token_buf, token_len);
-				break;
-			}
-			else
-			{
-				stream_in(stream, 1);
-				
-				if (now == TOKEN_CHAR_LC)
-					type = TOKEN_LC;
-				else type = TOKEN_RC;
-				
-				break;
-			}
-		}
+        if (now == TOKEN_CHAR_LC || now == TOKEN_CHAR_RC)
+        {
+            if (token_len > 0)
+            {
+                type = TOKEN_SYMBOL;
+                *result = xstring_from_cstr(token_buf, token_len);
+                break;
+            }
+            else
+            {
+                stream_in(stream, 1);
+                
+                if (now == TOKEN_CHAR_LC)
+                    type = TOKEN_LC;
+                else type = TOKEN_RC;
+                
+                break;
+            }
+        }
 
-		if (now == TOKEN_CHAR_COMMENT)
-		{
-			stream_in(stream, 1);
-			while (1)
-			{
-				now = stream_in(stream, 0);
-				if (now < 0 || CHAR_IS_NEWLINE(now))
-				{
-					while (1)
-					{
-						now = stream_in(stream, 0);
-						if (now < 0 || !CHAR_IS_NEWLINE(now))
-							break;
-						else stream_in(stream, 1);
-					}
-					break;
-				}
-				else stream_in(stream, 1);
-			}
-			continue;
-		}
+        if (now == TOKEN_CHAR_COMMENT)
+        {
+            stream_in(stream, 1);
+            while (1)
+            {
+                now = stream_in(stream, 0);
+                if (now < 0 || CHAR_IS_NEWLINE(now))
+                {
+                    while (1)
+                    {
+                        now = stream_in(stream, 0);
+                        if (now < 0 || !CHAR_IS_NEWLINE(now))
+                            break;
+                        else stream_in(stream, 1);
+                    }
+                    break;
+                }
+                else stream_in(stream, 1);
+            }
+            continue;
+        }
 
-		if (now == TOKEN_CHAR_QUOTE)
-		{
-			if (token_len > 0)
-			{
-				type = TOKEN_SYMBOL;
-				*result = xstring_from_cstr(token_buf, token_len);
-				break;
-			}
-			else
-			{
-				stream_in(stream, 1);
-				type = TOKEN_STRING;
-				
-				while (1)
-				{
-					now = stream_in(stream, 1);
-					if (now < 0 || now == TOKEN_CHAR_QUOTE)
-					{
-						if (token_len > 0)
-							*result = xstring_from_cstr(token_buf, token_len);
-						break;
-					}
-					else if (now == TOKEN_CHAR_ESCAPE)
-					{
-						now = stream_in(stream, 1);
-						if (now < 0)
-						{
-							if (token_len > 0)
-								*result = xstring_from_cstr(token_buf, token_len);
-							break;
-						}
-						
-						++ token_len;
-						EXPAND_TOKEN;
-						token_buf[token_len - 1] = now;
-					}
-					else
-					{
-						++ token_len;
-						EXPAND_TOKEN;
-						token_buf[token_len - 1] = now;
-					}
-				}
+        if (now == TOKEN_CHAR_QUOTE)
+        {
+            if (token_len > 0)
+            {
+                type = TOKEN_SYMBOL;
+                *result = xstring_from_cstr(token_buf, token_len);
+                break;
+            }
+            else
+            {
+                stream_in(stream, 1);
+                type = TOKEN_STRING;
+                
+                while (1)
+                {
+                    now = stream_in(stream, 1);
+                    if (now < 0 || now == TOKEN_CHAR_QUOTE)
+                    {
+                        if (token_len > 0)
+                            *result = xstring_from_cstr(token_buf, token_len);
+                        break;
+                    }
+                    else if (now == TOKEN_CHAR_ESCAPE)
+                    {
+                        now = stream_in(stream, 1);
+                        if (now < 0)
+                        {
+                            if (token_len > 0)
+                                *result = xstring_from_cstr(token_buf, token_len);
+                            break;
+                        }
+                        
+                        ++ token_len;
+                        EXPAND_TOKEN;
 
-				break;
-			}
-		}
+                        switch (now)
+                        {
+                        case 'n':
+                            token_buf[token_len - 1] = '\n';
+                            break;
 
-		++ token_len;
-		EXPAND_TOKEN;
-		token_buf[token_len - 1] = now;
+                        case 'r':
+                            token_buf[token_len - 1] = '\r';
+                            break;
 
-		stream_in(stream, 1);
-	}
+                        default:
+                            token_buf[token_len - 1] = now;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        ++ token_len;
+                        EXPAND_TOKEN;
+                        token_buf[token_len - 1] = now;
+                    }
+                }
+
+                break;
+            }
+        }
+
+        ++ token_len;
+        EXPAND_TOKEN;
+        token_buf[token_len - 1] = now;
+
+        stream_in(stream, 1);
+    }
 #undef EXPAND_TOKEN
 
-	if (token_buf != NULL) SEE_FREE(token_buf);
-	return type;
+    if (token_buf != NULL) SEE_FREE(token_buf);
+    return type;
 }
 
 /* Internal parser that parse a complete ast expression */
@@ -190,131 +204,131 @@ parse_token(stream_in_f stream_in, void *stream, xstring_t *result)
 static int
 ast_simple_parse_char_stream_internal(stream_in_f stream_in, void *stream, ast_node_t *result)
 {
-	xstring_t string;
-	int type;
-	ast_node_t node;
-	
-	*result = NULL;
-	
-	if ((type = parse_token(stream_in, stream, &string)) < 0) return -1;
-	if (type == TOKEN_EOF)
-	{
-		*result = NULL;
-		return 0;
-	}
+    xstring_t string;
+    int type;
+    ast_node_t node;
+    
+    *result = NULL;
+    
+    if ((type = parse_token(stream_in, stream, &string)) < 0) return -1;
+    if (type == TOKEN_EOF)
+    {
+        *result = NULL;
+        return 0;
+    }
 
-	switch (type)
-	{
-	case TOKEN_SYMBOL:
-	{
-		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
-		if (node == NULL) return -1;
-		
-		node->header.type = AST_SYMBOL;
-		node->header.prev = node->header.next = node;
-		node->header.priv = NULL;
-		
-		node->symbol.str  = string;
+    switch (type)
+    {
+    case TOKEN_SYMBOL:
+    {
+        node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
+        if (node == NULL) return -1;
+        
+        node->header.type = AST_SYMBOL;
+        node->header.prev = node->header.next = node;
+        node->header.priv = NULL;
+        
+        node->symbol.str  = string;
 
-		node->symbol.type = SYMBOL_NUMERIC;
-		/* Process constant as numeric */
-		if (!(xstring_len(node->symbol.str) > 1 &&
-			  xstring_cstr(node->symbol.str)[0] == TOKEN_CHAR_NUMERIC_CONSTANT))
-		{
-			int dot = 0;
-			int i;
-			for (i = 0; i != string->len; ++ i)
-			{
-				if (i == 0 && string->cstr[i] == TOKEN_CHAR_MINUS && string->len > 1) continue;
-				
-				if (!CHAR_IS_NUMERIC(string->cstr[i]))
-				{
-					if (string->cstr[i] == TOKEN_CHAR_DOT)
-					{
-						if (dot)
-							node->symbol.type = SYMBOL_GENERAL;
-						else dot = 1;
-					}
-					else node->symbol.type = SYMBOL_GENERAL;
-				}
-			}
-		}
+        node->symbol.type = SYMBOL_NUMERIC;
+        /* Process constant as numeric */
+        if (!(xstring_len(node->symbol.str) > 1 &&
+              xstring_cstr(node->symbol.str)[0] == TOKEN_CHAR_NUMERIC_CONSTANT))
+        {
+            int dot = 0;
+            int i;
+            for (i = 0; i != string->len; ++ i)
+            {
+                if (i == 0 && string->cstr[i] == TOKEN_CHAR_MINUS && string->len > 1) continue;
+                
+                if (!CHAR_IS_NUMERIC(string->cstr[i]))
+                {
+                    if (string->cstr[i] == TOKEN_CHAR_DOT)
+                    {
+                        if (dot)
+                            node->symbol.type = SYMBOL_GENERAL;
+                        else dot = 1;
+                    }
+                    else node->symbol.type = SYMBOL_GENERAL;
+                }
+            }
+        }
 
-		break;
-	}
-		
-	case TOKEN_STRING:
-	{
-		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
-		if (node == NULL) return -1;
-		
-		node->header.type = AST_SYMBOL;
-		node->header.prev = node->header.next = node;
-		node->header.priv = NULL;
+        break;
+    }
+        
+    case TOKEN_STRING:
+    {
+        node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
+        if (node == NULL) return -1;
+        
+        node->header.type = AST_SYMBOL;
+        node->header.prev = node->header.next = node;
+        node->header.priv = NULL;
 
-		node->symbol.type = SYMBOL_STRING;
-		node->symbol.str  = string;
-		break;
-	}
-		
-	case TOKEN_LC:
-	{
-		node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
-		if (node == NULL) return -1;
-		*result = node;
-		
-		node->header.type = AST_GENERAL;
-		node->header.prev = node->header.next = node;
-		node->header.priv = NULL;
+        node->symbol.type = SYMBOL_STRING;
+        node->symbol.str  = string;
+        break;
+    }
+        
+    case TOKEN_LC:
+    {
+        node = (ast_node_t)SEE_MALLOC(sizeof(struct ast_node_s));
+        if (node == NULL) return -1;
+        *result = node;
+        
+        node->header.type = AST_GENERAL;
+        node->header.prev = node->header.next = node;
+        node->header.priv = NULL;
 
-		node->general.head = NULL;
+        node->general.head = NULL;
 
-		while (1)
-		{
-			ast_node_t c;
-			int r = ast_simple_parse_char_stream_internal(stream_in, stream, &c);
-			if (r < 0)
-			{
-				if (c != NULL) ast_free(c);
-				return -1;
-			}
-			if (c == NULL) break;
+        while (1)
+        {
+            ast_node_t c;
+            int r = ast_simple_parse_char_stream_internal(stream_in, stream, &c);
+            if (r < 0)
+            {
+                if (c != NULL) ast_free(c);
+                return -1;
+            }
+            if (c == NULL) break;
 
-			if (node->general.head == NULL)
-			{
-				node->general.head = c;
-				c->header.prev = c->header.next = c;
-			}
-			else
-			{
-				c->header.next = node->general.head;
-				c->header.prev = c->header.next->header.prev;
+            if (node->general.head == NULL)
+            {
+                node->general.head = c;
+                c->header.prev = c->header.next = c;
+            }
+            else
+            {
+                c->header.next = node->general.head;
+                c->header.prev = c->header.next->header.prev;
 
-				c->header.next->header.prev = c;
-				c->header.prev->header.next = c;
-			}
-		}
-		
-		break;
-	}
-		
-	case TOKEN_RC:
-		*result = NULL;
-		return 0;
-	}
+                c->header.next->header.prev = c;
+                c->header.prev->header.next = c;
+            }
+        }
+        
+        break;
+    }
+        
+    case TOKEN_RC:
+        *result = NULL;
+        return 0;
+    }
 
-	*result = node;
-	return 0;
+    *result = node;
+    return 0;
 }
 
 ast_node_t 
 ast_simple_parse_char_stream(stream_in_f stream_in, void *stream)
 {
-	ast_node_t node;
-	if (ast_simple_parse_char_stream_internal(stream_in, stream, &node) < 0)
-	{
-		if (node != NULL) ast_free(node);
-		node = NULL;
-	}
-	return node;
+    ast_node_t node;
+    if (ast_simple_parse_char_stream_internal(stream_in, stream, &node) < 0)
+    {
+        if (node != NULL) ast_free(node);
+        node = NULL;
+    }
+    return node;
 }

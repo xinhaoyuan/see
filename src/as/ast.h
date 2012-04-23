@@ -82,6 +82,7 @@ typedef struct ast_node_s
 
 		struct
 		{
+			int toplevel;
 			ast_node_t head;
 		} proc;
 

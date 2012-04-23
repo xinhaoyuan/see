@@ -1,39 +1,22 @@
-.PHONY: all stat-loc clean
+.PHONY: all 
 
-V       ?= @
-E_ENCODE = $(shell echo $(1) | sed -e 's!_!_1!g' -e 's!/!_2!g')
-E_DECODE = $(shell echo $(1) | sed -e 's!_2!/!g' -e 's!_1!_!g')
-T_BASE   = target
+T_CC_FLAGS       ?= ${T_CC_FLAGS_OPT} -Wall -Isrc
+T_CC_OPT_FLAGS   ?= -O0
+T_CC_DEBUG_FLAGS ?= -g
 
-T_CC_FLAGS_OPT ?= -O0 -g 
-T_CC_FLAGS     ?= ${T_CC_FLAGS_OPT} -Wall
+SRCFILES:= $(shell find src '(' '!' -regex '.*/_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!^\./!!g')
+SRCFILES:= $(filter-out src/simple_interpreter.c,${SRCFILES})
 
-SRCFILES:= $(shell find src '(' '!' -regex '\./_.*' ')' -and '(' -iname "*.c" ')' | sed -e 's!\./!!g')
-SRCFILES:= $(filter-out simple_interpreter.c, ${SRCFILES})
-OBJFILES:= $(addprefix ${T_BASE}/,$(addsuffix .o,$(foreach FILE,${SRCFILES},$(call E_ENCODE,${FILE}))))
-DEPFILES:= $(OBJFILES:.o=.d)
+include ${T_BASE}/utl/template.mk
 
-all: ${T_BASE}/comp
+all: ${T_OBJ}/see.a ${T_OBJ}/see-simpintp
 
 -include ${DEPFILES}
 
-${T_BASE}/%.d:
-	${V}${CC} $(call E_DECODE,$*) -o $@ -MM $(T_CC_FLAGS) -MT $(@:.d=.o)
-
-${T_BASE}/%.o: ${T_BASE}/%.d
-	@echo CC $(call E_DECODE,$*)
-	${V}${CC} $(call E_DECODE,$*) -o $@ ${T_CC_FLAGS} -c
-
-${T_BASE}/comp: src/simple_interpreter.c ${T_BASE}/see.a
+${T_OBJ}/see-simpintp: src/simple_interpreter.c ${T_OBJ}/see.a
 	@echo LD $@
-	${V}${CC} $^ -o $@ ${T_CC_FLAGS}
+	${V}${CC} $^ -o $@ ${T_CC_ALL_FLAGS}
 
-${T_BASE}/see.a: ${OBJFILES}
+${T_OBJ}/see.a: ${OBJFILES}
 	@echo AR $@
 	${V}ar r $@ $^
-
-stat-loc:
-	${V}wc ${SRCFILES} -l
-
-clean:
-	-${V}rm -f ${T_BASE}/*
