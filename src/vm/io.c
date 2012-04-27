@@ -293,7 +293,11 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
             
             if (xstring_cstr(node->symbol.str)[0] == '#')
             {
-                if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_CONS, -1))
+                if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_NOT, -1))
+                {
+                    v = FUNC_NOT;
+                }
+                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_CONS, -1))
                 {
                     v = FUNC_CONS;
                 }

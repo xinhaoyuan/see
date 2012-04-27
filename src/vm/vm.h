@@ -12,17 +12,19 @@
 
 int vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_flag);
 
-#define FUNC_CAR     1
-#define FUNC_CDR     2
-#define FUNC_CONS    3
-#define FUNC_ADD     4
-#define FUNC_SUB     5
-#define FUNC_EQ      6
-#define FUNC_VEC     7
-#define FUNC_VEC_LEN 8
-#define FUNC_VEC_REF 9
-#define FUNC_VEC_SET 10
+#define FUNC_NOT     1
+#define FUNC_CAR     2
+#define FUNC_CDR     3
+#define FUNC_CONS    4
+#define FUNC_ADD     5
+#define FUNC_SUB     6
+#define FUNC_EQ      7
+#define FUNC_VEC     8
+#define FUNC_VEC_LEN 9
+#define FUNC_VEC_REF 10
+#define FUNC_VEC_SET 11
 
+#define SYMBOL_CONSTANT_NOT     "#not"
 #define SYMBOL_CONSTANT_CAR     "#car"
 #define SYMBOL_CONSTANT_CDR     "#cdr"
 #define SYMBOL_CONSTANT_CONS    "#cons"

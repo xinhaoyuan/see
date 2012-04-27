@@ -37,6 +37,8 @@ typedef unsigned long long see_uint_t;
 #define ENCODE_SUFFIX_BOXED  3
 
 #define OBJECT_NULL          ((object_t)0x1)
+#define OBJECT_FALSE         ((object_t)0x5)
+#define OBJECT_TRUE          ((object_t)0x9)
 
 /* Assume that the object pointer is at least aligned by 2 bits */
 #define ENCODE_SUFFIX(object) ((see_uint_t)(object) & 0x3)
@@ -83,72 +85,72 @@ void object_type_init(object_t object, int type);
 
 struct see_external_type_s
 {
-	const char *name;
-	
-	void(*enumerate)(object_t, void *, void(*)(void *, object_t));
-	void(*free)(object_t);
+    const char *name;
+    
+    void(*enumerate)(object_t, void *, void(*)(void *, object_t));
+    void(*free)(object_t);
 };
 
 extern struct see_external_type_s external_type_dummy;
 
 struct object_s
 {
-	union
-	{
-		xstring_t string;
+    union
+    {
+        xstring_t string;
 
-		struct
-		{
-			slot_s slot_car, slot_cdr;
-		} pair;
+        struct
+        {
+            slot_s slot_car, slot_cdr;
+        } pair;
 
-		struct
-		{
-			unsigned int length;
-			slot_s      *slot_entry;
-		} vector;
+        struct
+        {
+            unsigned int length;
+            slot_s      *slot_entry;
+        } vector;
 
-		struct
-		{
-			unsigned int length;
-			slot_s      *slot_entry;
-			object_t     parent;
-		} environment;
+        struct
+        {
+            unsigned int length;
+            slot_s      *slot_entry;
+            object_t     parent;
+        } environment;
 
-		struct
-		{
-			expression_t exp;
-			unsigned int argc;
-			object_t     env;
-		} closure;
+        struct
+        {
+            expression_t exp;
+            unsigned int argc;
+            object_t     env;
+        } closure;
 
-		struct
-		{
-			expression_t exp;
-			object_t     env;
+        struct
+        {
+            expression_t exp;
+            object_t     env;
 
-			unsigned int stack_count;
-			object_t    *stack;
-		} continuation;
+            unsigned int stack_count;
+            object_t    *stack;
+        } continuation;
 
-		struct
-		{
-			struct see_external_type_s *type;
-			
-			union
-			{
-				see_int_t   id;
-				see_uint_t uid;
-				void     *priv;
-			};			
-		} external;
-	};
+        struct
+        {
+            struct see_external_type_s *type;
+            
+            union
+            {
+                see_int_t   id;
+                see_uint_t uid;
+                void     *priv;
+            };          
+        } external;
+    };
 };
 
 struct scope_ref_s
 {
-	unsigned int parent_level;
-	unsigned int offset;
+    unsigned int parent_level;
+    unsigned int offset;
 };
 
 #define EXP_TYPE_APPLY   0x00
@@ -165,99 +167,99 @@ struct scope_ref_s
 
 struct expression_s
 {
-	object_t handle;
-	unsigned short type;
-	unsigned short depth;
-	
-	expression_t parent;
-	expression_t next;
-	
-	union
-	{
-		struct
-		{
-			int          tail;
-			unsigned int argc;
-			expression_t child;
-		} apply;
-		
-		struct
-		{
-			expression_t child;
-		} and_exp, or_exp;
+    object_t handle;
+    unsigned short type;
+    unsigned short depth;
+    
+    expression_t parent;
+    expression_t next;
+    
+    union
+    {
+        struct
+        {
+            int          tail;
+            unsigned int argc;
+            expression_t child;
+        } apply;
+        
+        struct
+        {
+            expression_t child;
+        } and_exp, or_exp;
 
-		struct
-		{
-			int toplevel;
-			expression_t child;
-		} proc;
+        struct
+        {
+            int toplevel;
+            expression_t child;
+        } proc;
 
-		struct
-		{
-			expression_t cd, th, el;
-		} cond;
+        struct
+        {
+            expression_t cd, th, el;
+        } cond;
 
-		struct
-		{
-			int tail;
-			expression_t exp;
-		} callcc;
+        struct
+        {
+            int tail;
+            expression_t exp;
+        } callcc;
 
-		struct
-		{
-			unsigned int argc;
-			int          inherit;
-			expression_t child;
-		} closure;
+        struct
+        {
+            unsigned int argc;
+            int          inherit;
+            expression_t child;
+        } closure;
 
-		struct
-		{
-			unsigned int varc;
-			int          inherit;
-			expression_t child;
-		} with;
+        struct
+        {
+            unsigned int varc;
+            int          inherit;
+            expression_t child;
+        } with;
 
-		struct
-		{
-			struct scope_ref_s ref;
-			expression_t exp;
-		} set;
+        struct
+        {
+            struct scope_ref_s ref;
+            expression_t exp;
+        } set;
 
-		struct scope_ref_s ref;
-		
-		object_t value;
-	};
+        struct scope_ref_s ref;
+        
+        object_t value;
+    };
 };
 
 struct execution_s
 {
-	expression_t  exp;
-	object_t      env;
+    expression_t  exp;
+    object_t      env;
 
-	unsigned int stack_alloc;
-	unsigned int stack_count;
-	object_t    *stack;
+    unsigned int stack_alloc;
+    unsigned int stack_count;
+    object_t    *stack;
 
-	object_t value;
-	int      to_push;
+    object_t value;
+    int      to_push;
 };
 
-#define EX_TRY_EXPAND(EX, DELTA)										\
-	({																	\
-		int __size = (EX)->stack_count + (DELTA);						\
-		if ((EX)->stack_alloc < __size)									\
-		{																\
-			int __alloc = (EX)->stack_alloc << 1;						\
-			while (__alloc < __size) __alloc <<= 1;						\
-			object_t *__stack = (object_t *)SEE_REALLOC((EX)->stack, sizeof(object_t) * __alloc); \
-			if (__stack)												\
-			{															\
-				(EX)->stack_alloc = __alloc;							\
-				(EX)->stack = __stack;									\
-			}															\
-		}																\
-		(EX)->stack_alloc < __size ? -1 : 0;							\
-	})
+#define EX_TRY_EXPAND(EX, DELTA)                                        \
+    ({                                                                  \
+        int __size = (EX)->stack_count + (DELTA);                       \
+        if ((EX)->stack_alloc < __size)                                 \
+        {                                                               \
+            int __alloc = (EX)->stack_alloc << 1;                       \
+            while (__alloc < __size) __alloc <<= 1;                     \
+            object_t *__stack = (object_t *)SEE_REALLOC((EX)->stack, sizeof(object_t) * __alloc); \
+            if (__stack)                                                \
+            {                                                           \
+                (EX)->stack_alloc = __alloc;                            \
+                (EX)->stack = __stack;                                  \
+            }                                                           \
+        }                                                               \
+        (EX)->stack_alloc < __size ? -1 : 0;                            \
+    })
 
 #define INT_UNBOX(object)      ((see_int_t)(object) >> 2)
 #define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
