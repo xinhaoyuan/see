@@ -24,16 +24,4 @@ int vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *st
 #define FUNC_VEC_REF 10
 #define FUNC_VEC_SET 11
 
-#define SYMBOL_CONSTANT_NOT     "#not"
-#define SYMBOL_CONSTANT_CAR     "#car"
-#define SYMBOL_CONSTANT_CDR     "#cdr"
-#define SYMBOL_CONSTANT_CONS    "#cons"
-#define SYMBOL_CONSTANT_ADD     "#add"
-#define SYMBOL_CONSTANT_SUB     "#sub"
-#define SYMBOL_CONSTANT_EQ      "#eq"
-#define SYMBOL_CONSTANT_VEC     "#vec"
-#define SYMBOL_CONSTANT_VEC_LEN "#veclen"
-#define SYMBOL_CONSTANT_VEC_REF "#vecref"
-#define SYMBOL_CONSTANT_VEC_SET "#vecset"
-
 #endif

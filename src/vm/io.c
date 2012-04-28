@@ -3,6 +3,33 @@
 #include "io.h"
 #include "../as/dump.h"
 
+struct constant_item_s
+{
+    const char *name;
+    int type;
+    see_int_t value;
+};
+
+static struct constant_item_s constants[] =
+{
+    { .name = "#nil",    .type = ENCODE_SUFFIX_SYMBOL, .value = OBJECT_ID_NULL },
+    { .name = "#t",      .type = ENCODE_SUFFIX_SYMBOL, .value = OBJECT_ID_TRUE },
+    { .name = "#f",      .type = ENCODE_SUFFIX_SYMBOL, .value = OBJECT_ID_FALSE },
+    
+    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = FUNC_NOT },
+    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = FUNC_NOT },
+    { .name = "#car",    .type = ENCODE_SUFFIX_INT, .value = FUNC_CAR },
+    { .name = "#cdr",    .type = ENCODE_SUFFIX_INT, .value = FUNC_CDR },
+    { .name = "#cons",   .type = ENCODE_SUFFIX_INT, .value = FUNC_CONS },
+    { .name = "#add",    .type = ENCODE_SUFFIX_INT, .value = FUNC_ADD },
+    { .name = "#sub",    .type = ENCODE_SUFFIX_INT, .value = FUNC_SUB },
+    { .name = "#eq",     .type = ENCODE_SUFFIX_INT, .value = FUNC_EQ },
+    { .name = "#vec",    .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC },
+    { .name = "#veclen", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_LEN },
+    { .name = "#vecref", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_REF },
+    { .name = "#vecset", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_SET },
+};
+
 
 #if SEE_SYSTEM_IO
 void
@@ -11,10 +38,29 @@ object_dump(object_t o, void *stream)
     switch (OBJECT_TYPE(o))
     {
     case ENCODE_SUFFIX_SYMBOL:
-        if (o ==  OBJECT_NULL)
-            SEE_FPRINTF(stream, " (NULL)");
-        else SEE_FPRINTF(stream, " (SYMBOL:%p\n)", o);
+    {
+        see_uint_t id = SYMBOL_UNBOX(o);
+        switch (id)
+        {
+        case OBJECT_ID_NULL:
+            SEE_FPRINTF(stream, " #nil");
+            break;
+
+        case OBJECT_ID_FALSE:
+            SEE_FPRINTF(stream, " #f");
+            break;
+
+        case OBJECT_ID_TRUE:
+            SEE_FPRINTF(stream, " #t");
+            break;
+
+        default:
+            SEE_FPRINTF(stream, " (SYMBOL:%p\n)", (void *)id);
+            break;
+        }
+
         break;
+    }
 
     case ENCODE_SUFFIX_INT:
 #if defined(__i386__)
@@ -270,7 +316,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         case SYMBOL_NULL:
             result->type = EXP_TYPE_VALUE;
             result->depth = 1;
-            result->value = NULL;
+            result->value = OBJECT_NULL;
             break;
                 
         case SYMBOL_GENERAL:
@@ -289,64 +335,51 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
         case SYMBOL_NUMERIC:
         {
-            see_int_t v;
+            /* Now the #constant do span more than numeric constants */
+            object_t o;
             
             if (xstring_cstr(node->symbol.str)[0] == '#')
             {
-                if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_NOT, -1))
+                int i = 0;
+                while (1)
                 {
-                    v = FUNC_NOT;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_CONS, -1))
-                {
-                    v = FUNC_CONS;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_CAR, -1))
-                {
-                    v = FUNC_CAR;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_CDR, -1))
-                {
-                    v = FUNC_CDR;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_ADD, -1))
-                {
-                    v = FUNC_ADD;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_SUB, -1))
-                {
-                    v = FUNC_SUB;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_EQ, -1))
-                {
-                    v = FUNC_EQ;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_VEC, -1))
-                {
-                    v = FUNC_VEC;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_VEC_LEN, -1))
-                {
-                    v = FUNC_VEC_LEN;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_VEC_REF, -1))
-                {
-                    v = FUNC_VEC_REF;
-                }
-                else if (xstring_equal_cstr(node->symbol.str, SYMBOL_CONSTANT_VEC_SET, -1))
-                {
-                    v = FUNC_VEC_SET;
-                }
-                else
-                {
-                    v = 0;
+                    if (i >= sizeof(constants) / sizeof(struct constant_item_s))
+                    {
+                        o = OBJECT_NULL;
+                        break;
+                    }
+
+                    if (xstring_equal_cstr(node->symbol.str, constants[i].name, -1))
+                    {
+                        switch (constants[i].type)
+                        {
+                        case ENCODE_SUFFIX_INT:
+                            o = INT_BOX(constants[i].value);
+                            break;
+                        case ENCODE_SUFFIX_SYMBOL:
+                            o = SYMBOL_BOX(constants[i].value);
+                            break;
+
+                        default:
+                            o = OBJECT_NULL;
+                        }
+
+                        break;
+                    }
+
+                    ++ i;
                 }
             }
-            else scan_int(xstring_cstr(node->symbol.str), &v);
-
+            else
+            {
+                see_int_t v;
+                scan_int(xstring_cstr(node->symbol.str), &v);
+                o = INT_BOX(v);
+            }
+            
             result->type = EXP_TYPE_VALUE;
             result->depth = 1;
-            result->value = INT_BOX(v);
+            result->value = o;
             break;
         }
 

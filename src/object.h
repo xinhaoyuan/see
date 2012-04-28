@@ -36,12 +36,30 @@ typedef unsigned long long see_uint_t;
 #define ENCODE_SUFFIX_INT    2
 #define ENCODE_SUFFIX_BOXED  3
 
-#define OBJECT_NULL          ((object_t)0x1)
-#define OBJECT_FALSE         ((object_t)0x5)
-#define OBJECT_TRUE          ((object_t)0x9)
-
 /* Assume that the object pointer is at least aligned by 2 bits */
 #define ENCODE_SUFFIX(object) ((see_uint_t)(object) & 0x3)
+
+#define SYMBOL_UNBOX(object)      ((see_int_t)(object) >> 2)
+#define SYMBOL_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_SYMBOL))
+
+#define INT_UNBOX(object)      ((see_int_t)(object) >> 2)
+#define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
+
+#define EXTERNAL_UNBOX(object) ((void *)((see_uint_t)(object) & ~(see_uint_t)0x3))
+#define EXTERNAL_BOX(e)        ((object_t)((see_uint_t)(e) | ENCODE_SUFFIX_BOXED))
+
+#define IS_OBJECT(object)      (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_OBJECT)
+#define IS_INT(object)         (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_INT)
+#define IS_SYMBOL(object)      (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_SYMBOL)
+#define IS_EXTERNAL(object)    (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_BOXED)
+
+#define OBJECT_ID_NULL       0
+#define OBJECT_ID_FALSE      1
+#define OBJECT_ID_TRUE       2
+
+#define OBJECT_NULL          SYMBOL_BOX(OBJECT_ID_NULL)
+#define OBJECT_FALSE         SYMBOL_BOX(OBJECT_ID_FALSE)
+#define OBJECT_TRUE          SYMBOL_BOX(OBJECT_ID_TRUE)
 
 /* The object type id */
 #define OBJECT_TYPE_UNINITIALIZED 0
@@ -260,17 +278,6 @@ struct execution_s
         }                                                               \
         (EX)->stack_alloc < __size ? -1 : 0;                            \
     })
-
-#define INT_UNBOX(object)      ((see_int_t)(object) >> 2)
-#define INT_BOX(i)             ((object_t)(((see_uint_t)(i) << 2) | ENCODE_SUFFIX_INT))
-
-#define EXTERNAL_UNBOX(object) ((void *)((see_uint_t)(object) & ~(see_uint_t)0x3))
-#define EXTERNAL_BOX(e)        ((object_t)((see_uint_t)(e) | ENCODE_SUFFIX_BOXED))
-
-#define IS_OBJECT(object)      (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_OBJECT)
-#define IS_INT(object)         (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_INT)
-#define IS_SYMBOL(object)      (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_SYMBOL)
-#define IS_EXTERNAL(object)    (ENCODE_SUFFIX(object) == ENCODE_SUFFIX_BOXED)
 
 heap_t   heap_new(void);
 void     heap_free(heap_t heap);
