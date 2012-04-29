@@ -26,7 +26,7 @@ ast_free(ast_node_t node)
         break;
 
     case AST_SYMBOL:
-        if (node->symbol.type == SYMBOL_STRING)
+        if (node->symbol.type != SYMBOL_NULL)
             xstring_free(node->symbol.str);
         if (node->header.priv != NULL) SEE_FREE(node->header.priv);
         break;
