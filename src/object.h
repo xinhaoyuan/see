@@ -3,7 +3,7 @@
 
 /* The common SEE object interface standard */
 
-/* The types */
+/* Internal types */
 typedef struct heap_s       heap_s;
 typedef struct object_s     object_s;
 typedef struct slot_s       slot_s;
@@ -20,6 +20,7 @@ typedef expression_s *expression_t;
 
 /* The integer inside the object system */
 /* Which may have the same bit width with pointers */
+
 #if defined(__i386__)
 typedef long          see_int_t;
 typedef unsigned long see_uint_t;
@@ -27,7 +28,10 @@ typedef unsigned long see_uint_t;
 typedef long long          see_int_t;
 typedef unsigned long long see_uint_t;
 #else
-#error unknown arch
+
+/* You may define other archs here */
+
+#error UNKNOWN ARCH 
 #endif
 
 /* The encoding suffix for distinguish object */

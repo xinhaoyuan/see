@@ -12,8 +12,8 @@
 #define TOKEN_STRING 4
 
 #define CHAR_IS_SEPARATOR(c) ((c) == '\n' || (c) == '\r' || (c) == ' ' || (c) == '\t')
-#define CHAR_IS_NUMERIC(c) ((c) <= '9' && (c) >= '0')
-#define CHAR_IS_NEWLINE(c) ((c) == '\n' || (c) == '\r')
+#define CHAR_IS_NUMERIC(c)   ((c) <= '9' && (c) >= '0')
+#define CHAR_IS_NEWLINE(c)   ((c) == '\n' || (c) == '\r')
 
 #define TOKEN_CHAR_NUMERIC_CONSTANT '#'
 #define TOKEN_CHAR_MINUS   '-'
