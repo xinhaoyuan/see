@@ -78,7 +78,7 @@ ScriptEngine::Apply(object_t object, std::vector<object_t> *args)
     
                         
 int
-ScriptEngine::Execute(object_t value, std::vector<object_t> *excall)
+ScriptEngine::Execute(object_t value, std::vector<object_t> *excall, bool escape)
 {
     int       ex_argc;
     object_t *ex_args;
@@ -96,12 +96,22 @@ ScriptEngine::Execute(object_t value, std::vector<object_t> *excall)
             it = mExMap.find(xstring_cstr(ex_args[0]->string));
         if (it == mExMap.end())
         {
-            int i;
+            if (escape)
+            {
+                int i;
                 
-            excall->clear();
-            for (i = 0; i < ex_argc; ++ i) excall->push_back(ex_args[i]);
-
-            break;
+                excall->clear();
+                for (i = 0; i < ex_argc; ++ i) excall->push_back(ex_args[i]);
+                
+                break;
+            }
+            else
+            {
+                value = OBJECT_NULL;
+                int i;
+                for (i = 0; i != ex_argc; ++ i)
+                    interp_unprotect(&mInterp, ex_args[i]);
+            }
         }
         else
         {

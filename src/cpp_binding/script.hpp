@@ -22,7 +22,7 @@ public:
 
     object_t LoadScript(const char *name);
     int Apply(object_t object, std::vector<object_t> *args);
-    int Execute(object_t value, std::vector<object_t> *excall);
+    int Execute(object_t value, std::vector<object_t> *excall, bool escape = false);
         
     object_t ObjectNew(void);
     void     ObjectProtect(object_t object);
