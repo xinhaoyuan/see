@@ -104,28 +104,45 @@ int main(int argc, const char *args[])
         while (1)
         {
             int r = interp_run(interp, ex_ret, &ex_argc, &ex_args);
-            prog = NULL;
-            if (r != APPLY_EXTERNAL_CALL)
-                break;
-            /* An example for handling external calls: display */
-
-            if (xstring_equal_cstr(ex_args[0]->string, "display", -1))
+            
+            switch (r)
             {
-                for (i = 1; i != ex_argc; ++ i)
+            case APPLY_EXTERNAL_CALL:
+                /* An example for handling external calls: display */
+                if (xstring_equal_cstr(ex_args[0]->string, "display", -1))
                 {
-                    object_dump(ex_args[i], stdout);
+                    for (i = 1; i != ex_argc; ++ i)
+                    {
+                        object_dump(ex_args[i], stdout);
+                    }
+                    printf("\n");
+                    
+                    ex_ret = OBJECT_NULL;
                 }
-                printf("\n");
+                else ex_ret = OBJECT_NULL;
+
+                /* The caller should unprotect the ex arguments by themself */
+                for (i = 0; i != ex_argc; ++ i)
+                    interp_unprotect(interp, ex_args[i]);
+
+                break;
+
+            case APPLY_EXTERNAL_CONSTANT:
+                /* An example for handling external constant:
+                 * #answer-of-everything. */
+                /* remember that we should never create objects from
+                 * heap for the external constant */
+                if (xstring_equal_cstr(interp->ex->exp->constant.name->string, "#answer-of-everything", -1))
+                    ex_ret = INT_BOX(42);
+                else ex_ret = OBJECT_NULL;
                 
-                ex_ret = OBJECT_NULL;
+                break;
+
+            default:
+                goto out;
             }
-            else ex_ret = OBJECT_NULL;
-
-            /* The caller should unprotect the ex arguments by themself */
-            for (i = 0; i != ex_argc; ++ i)
-                interp_unprotect(interp, ex_args[i]);
         }
-
+    out:
         interp_uninitialize(interp);
 
         break;

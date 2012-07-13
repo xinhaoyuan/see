@@ -177,17 +177,18 @@ struct scope_ref_s
     unsigned int offset;
 };
 
-#define EXP_TYPE_APPLY   0x00
-#define EXP_TYPE_PROC    0x01
-#define EXP_TYPE_AND     0x02
-#define EXP_TYPE_OR      0x03
-#define EXP_TYPE_COND    0x04
-#define EXP_TYPE_SET     0x05
-#define EXP_TYPE_REF     0x06
-#define EXP_TYPE_VALUE   0x07
-#define EXP_TYPE_CLOSURE 0x08
-#define EXP_TYPE_WITH    0x09
-#define EXP_TYPE_CALLCC  0x0a
+#define EXP_TYPE_APPLY             0x00
+#define EXP_TYPE_PROC              0x01
+#define EXP_TYPE_AND               0x02
+#define EXP_TYPE_OR                0x03
+#define EXP_TYPE_COND              0x04
+#define EXP_TYPE_SET               0x05
+#define EXP_TYPE_REF               0x06
+#define EXP_TYPE_CONSTANT          0x07
+#define EXP_TYPE_CONSTANT_EXTERNAL 0x08
+#define EXP_TYPE_CLOSURE           0x09
+#define EXP_TYPE_WITH              0x0a
+#define EXP_TYPE_CALLCC            0x0b
 
 struct expression_s
 {
@@ -250,8 +251,12 @@ struct expression_s
         } set;
 
         struct scope_ref_s ref;
-        
-        object_t value;
+
+        struct
+        {
+            object_t name;
+            object_t value;
+        } constant;
     };
 };
 

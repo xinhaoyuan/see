@@ -30,6 +30,27 @@ static struct constant_item_s constants[] =
     { .name = "#vecset", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_SET },
 };
 
+static object_t
+internal_constant_match(xstring_t name)
+{
+    int i;
+    for (i = 0; i < sizeof(constants) / sizeof(struct constant_item_s); ++ i)
+    {
+        if (xstring_equal_cstr(name, constants[i].name, -1))
+        {
+            switch (constants[i].type)
+            {
+            case ENCODE_SUFFIX_INT:
+                return INT_BOX(constants[i].value);
+
+            case ENCODE_SUFFIX_SYMBOL:
+                return SYMBOL_BOX(constants[i].value);
+            }
+        }
+    }
+    return NULL;
+}
+
 
 #if SEE_SYSTEM_IO
 void
@@ -136,6 +157,14 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
     {
         if (node->symbol.type == SYMBOL_STRING)
             ++ (*objs_count);
+        else if (node->symbol.type == SYMBOL_NUMERIC &&
+                 xstring_cstr(node->symbol.str)[0] == '#')
+        {
+            if (internal_constant_match(node->symbol.str) == NULL)
+            {
+                ++ (*objs_count);
+            }
+        }
         
         break;
     }
@@ -314,9 +343,9 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         switch (type)
         {
         case SYMBOL_NULL:
-            result->type = EXP_TYPE_VALUE;
+            result->type = EXP_TYPE_CONSTANT;
             result->depth = 1;
-            result->value = OBJECT_NULL;
+            result->constant.value = OBJECT_NULL;
             break;
                 
         case SYMBOL_GENERAL:
@@ -335,40 +364,12 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
         case SYMBOL_NUMERIC:
         {
-            /* Now the #constant do span more than numeric constants */
-            object_t o;
+            /* Now the #constant does spawn more than numeric constants */
+            object_t o = NULL;
             
             if (xstring_cstr(node->symbol.str)[0] == '#')
             {
-                int i = 0;
-                while (1)
-                {
-                    if (i >= sizeof(constants) / sizeof(struct constant_item_s))
-                    {
-                        o = OBJECT_NULL;
-                        break;
-                    }
-
-                    if (xstring_equal_cstr(node->symbol.str, constants[i].name, -1))
-                    {
-                        switch (constants[i].type)
-                        {
-                        case ENCODE_SUFFIX_INT:
-                            o = INT_BOX(constants[i].value);
-                            break;
-                        case ENCODE_SUFFIX_SYMBOL:
-                            o = SYMBOL_BOX(constants[i].value);
-                            break;
-
-                        default:
-                            o = OBJECT_NULL;
-                        }
-
-                        break;
-                    }
-
-                    ++ i;
-                }
+                o = internal_constant_match(node->symbol.str);
             }
             else
             {
@@ -377,19 +378,31 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
                 o = INT_BOX(v);
             }
             
-            result->type = EXP_TYPE_VALUE;
             result->depth = 1;
-            result->value = o;
+            if (o == NULL)
+            {
+                /* Throw an external escape if not found */
+                result->type = EXP_TYPE_CONSTANT_EXTERNAL;
+                result->constant.name = priv->objs[priv->objs_count ++];
+                result->constant.name->string = xstring_dup(node->symbol.str);
+                OBJECT_TYPE_INIT(result->constant.name, OBJECT_TYPE_STRING);
+            }
+            else
+            {
+                result->type = EXP_TYPE_CONSTANT;
+                result->constant.value = o;
+            }
+            
             break;
         }
 
         case SYMBOL_STRING:
         {
-            result->type = EXP_TYPE_VALUE;
+            result->type = EXP_TYPE_CONSTANT;
             result->depth = 1;
-            result->value = priv->objs[priv->objs_count ++];
-            result->value->string = xstring_dup(node->symbol.str);
-            OBJECT_TYPE_INIT(result->value, OBJECT_TYPE_STRING);
+            result->constant.value = priv->objs[priv->objs_count ++];
+            result->constant.value->string = xstring_dup(node->symbol.str);
+            OBJECT_TYPE_INIT(result->constant.value, OBJECT_TYPE_STRING);
             break;
         }
 
@@ -670,7 +683,6 @@ handle_from_ast(heap_t heap, ast_node_t node)
     }
 
     /* Now no allocation failure is possible */
-
     priv->exps = exps;
     priv->objs = objs;
     priv->exps_count = 0;

@@ -424,6 +424,12 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_f
                 return APPLY_EXIT;
             }
 
+            if (ex->exp->type == EXP_TYPE_CONSTANT_EXTERNAL)
+            {
+                ex->exp->type = EXP_TYPE_CONSTANT;
+                ex->exp->constant.value = ex->value;
+            }
+
             expression_t exp_parent = ex->exp->parent;
             
             if (ex->exp->next != NULL)
@@ -595,11 +601,17 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_f
             switch (ex->exp->type)
             {
                 
-            case EXP_TYPE_VALUE:
+            case EXP_TYPE_CONSTANT:
             {
-                ex->value = ex->exp->value;
+                ex->value = ex->exp->constant.value;
                 ex->to_push = 1;
                 break;
+            }
+
+            case EXP_TYPE_CONSTANT_EXTERNAL:
+            {
+                ex->to_push = 1;
+                return APPLY_EXTERNAL_CONSTANT;
             }
 
             case EXP_TYPE_REF:
