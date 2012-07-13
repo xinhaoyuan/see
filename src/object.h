@@ -61,6 +61,8 @@ typedef unsigned long long see_uint_t;
 #define OBJECT_ID_FALSE      1
 #define OBJECT_ID_TRUE       2
 
+#define OBJECT_ID_UD_START   3
+
 #define OBJECT_NULL          SYMBOL_BOX(OBJECT_ID_NULL)
 #define OBJECT_FALSE         SYMBOL_BOX(OBJECT_ID_FALSE)
 #define OBJECT_TRUE          SYMBOL_BOX(OBJECT_ID_TRUE)
@@ -164,7 +166,7 @@ struct object_s
                 see_int_t   id;
                 see_uint_t uid;
                 void     *priv;
-            };          
+            };
         } external;
     };
 };

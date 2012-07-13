@@ -55,7 +55,7 @@ object_dump(object_t o, void *stream)
             break;
 
         default:
-            SEE_FPRINTF(stream, " (SYMBOL:%p\n)", (void *)id);
+            SEE_FPRINTF(stream, " (SYMBOL:%p)", (void *)id);
             break;
         }
 
