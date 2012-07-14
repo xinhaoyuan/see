@@ -90,7 +90,7 @@ int main(int argc, const char *args[])
         s.file = fopen(args[2], "r");
         s.buf  = BUF_EMPTY;
 
-        prog = interp_eval(interp, (stream_in_f)simple_stream_in, &s);
+        prog = interp_eval(interp, (stream_in_f)simple_stream_in, &s, NULL);
 
         fclose(s.file);
 
@@ -100,26 +100,33 @@ int main(int argc, const char *args[])
         object_t *ex_args;
         object_t  ex_ret = NULL;
         int i;
+
+        object_t __me = interp_object_new(interp);
+        __me->string = xstring_from_cstr("SEE interpreter", -1);
+        OBJECT_TYPE_INIT(__me, OBJECT_TYPE_STRING);
+        interp_protect(interp, __me);
         
         while (1)
         {
             int r = interp_run(interp, ex_ret, &ex_argc, &ex_args);
+            if (r <= 0) break;
             
             switch (r)
             {
             case APPLY_EXTERNAL_CALL:
+                ex_ret = OBJECT_NULL;
                 /* An example for handling external calls: display */
-                if (xstring_equal_cstr(ex_args[0]->string, "display", -1))
+                if (OBJECT_TYPE(ex_args[0]) == OBJECT_TYPE_STRING)
                 {
-                    for (i = 1; i != ex_argc; ++ i)
+                    if (xstring_equal_cstr(ex_args[0]->string, "display", -1))
                     {
-                        object_dump(ex_args[i], stdout);
+                        for (i = 1; i != ex_argc; ++ i)
+                        {
+                            object_dump(ex_args[i], stdout);
+                        }
+                        printf("\n");
                     }
-                    printf("\n");
-                    
-                    ex_ret = OBJECT_NULL;
                 }
-                else ex_ret = OBJECT_NULL;
 
                 /* The caller should unprotect the ex arguments by themself */
                 for (i = 0; i != ex_argc; ++ i)
@@ -128,21 +135,38 @@ int main(int argc, const char *args[])
                 break;
 
             case APPLY_EXTERNAL_CONSTANT:
-                /* An example for handling external constant:
-                 * #answer-of-everything. */
+                /* An example for handling external constant. */
                 /* remember that we should never create objects from
                  * heap for the external constant */
-                if (xstring_equal_cstr(interp->ex->exp->constant.name->string, "#answer-of-everything", -1))
+                if (xstring_equal_cstr(interp->ex->exp->constant.name, "#answer-to-the-universe", -1))
                     ex_ret = INT_BOX(42);
                 else ex_ret = OBJECT_NULL;
                 
                 break;
 
+            case APPLY_EXTERNAL_LOAD:
+                /* Handling external load */
+                ex_ret = OBJECT_NULL;
+                if (xstring_equal_cstr(interp->ex->exp->load.name, "me", -1))
+                {
+                    ex_ret = __me;
+                }
+                break;
+
+            case APPLY_EXTERNAL_STORE:
+                /* Handler external store */
+                ex_ret = OBJECT_NULL;
+                if (xstring_equal_cstr(interp->ex->exp->store.name, "me", -1))
+                {
+                    fprintf(stderr, "Setting ``me'' is impossible\n");
+                }
+                break;
+                
             default:
-                goto out;
+                ex_ret = OBJECT_NULL;
+                break;
             }
         }
-    out:
         interp_uninitialize(interp);
 
         break;

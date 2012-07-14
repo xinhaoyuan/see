@@ -147,7 +147,7 @@ object_dump(object_t o, void *stream)
 #endif
 
 static void
-scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
+scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count, unsigned *strs_count)
 {
     ++ (*exps_count);
     
@@ -155,15 +155,22 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
     {
     case AST_SYMBOL:
     {
-        if (node->symbol.type == SYMBOL_STRING)
-            ++ (*objs_count);
-        else if (node->symbol.type == SYMBOL_NUMERIC &&
-                 xstring_cstr(node->symbol.str)[0] == '#')
+        if (node->symbol.type == SYMBOL_GENERAL)
         {
-            if (internal_constant_match(node->symbol.str) == NULL)
-            {
-                ++ (*objs_count);
-            }
+            /* Store a string for external load */
+            if (node->header.priv == NULL)
+                ++ (*strs_count);
+        }
+        else if (node->symbol.type == SYMBOL_STRING)
+        {
+            ++ (*objs_count);
+        }
+        else if (node->symbol.type == SYMBOL_NUMERIC)
+        {
+            /* Store a string for external constant */
+            if (xstring_cstr(node->symbol.str)[0] == '#' && 
+                internal_constant_match(node->symbol.str) == NULL)
+                ++ (*strs_count);
         }
         
         break;
@@ -171,13 +178,13 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
 
     case AST_LAMBDA:
     {
-        scan_ast(node->lambda.proc, exps_count, objs_count);
+        scan_ast(node->lambda.proc, exps_count, objs_count, strs_count);
         break;
     }
 
     case AST_WITH:
     {
-        scan_ast(node->with.proc, exps_count, objs_count);
+        scan_ast(node->with.proc, exps_count, objs_count, strs_count);
         break;
     }
 
@@ -187,7 +194,7 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
         ast_node_t cur = node->proc.head;
         while (cur != NULL)
         {
-            scan_ast(cur, exps_count, objs_count);
+            scan_ast(cur, exps_count, objs_count, strs_count);
             cur = cur->header.next;
             if (cur == node->proc.head) cur = NULL;
         }
@@ -199,7 +206,7 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
         ast_node_t cur = node->s_and.head;
         while (cur != NULL)
         {
-            scan_ast(cur, exps_count, objs_count);
+            scan_ast(cur, exps_count, objs_count, strs_count);
             cur = cur->header.next;
             if (cur == node->s_and.head) cur = NULL;
         }
@@ -211,7 +218,7 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
         ast_node_t cur = node->s_or.head;
         while (cur != NULL)
         {
-            scan_ast(cur, exps_count, objs_count);
+            scan_ast(cur, exps_count, objs_count, strs_count);
             cur = cur->header.next;
             if (cur == node->s_or.head) cur = NULL;
         }
@@ -223,32 +230,37 @@ scan_ast(ast_node_t node, unsigned int *exps_count, unsigned *objs_count)
     {
         int i;
         
-        scan_ast(node->apply.func, exps_count, objs_count);
+        scan_ast(node->apply.func, exps_count, objs_count, strs_count);
         for (i = 0; i < node->apply.argc; ++ i)
-            scan_ast(node->apply.args[i], exps_count, objs_count);
+            scan_ast(node->apply.args[i], exps_count, objs_count, strs_count);
         
         break;
     }
 
     case AST_COND:
     {
-        scan_ast(node->cond.c, exps_count, objs_count);
-        scan_ast(node->cond.t, exps_count, objs_count);
+        scan_ast(node->cond.c, exps_count, objs_count, strs_count);
+        scan_ast(node->cond.t, exps_count, objs_count, strs_count);
         if (node->cond.e != NULL)
-            scan_ast(node->cond.e, exps_count, objs_count);
+            scan_ast(node->cond.e, exps_count, objs_count, strs_count);
 
         break;
     }
         
     case AST_SET:
     {
-        scan_ast(node->set.value, exps_count, objs_count);
+        if (node->header.priv == NULL)
+        {
+            /* Store a string for external store */
+            ++ (*strs_count);
+        }
+        scan_ast(node->set.value, exps_count, objs_count, strs_count);
         break;
     }
 
     case AST_CALLCC:
     {
-        scan_ast(node->callcc.node, exps_count, objs_count);
+        scan_ast(node->callcc.node, exps_count, objs_count, strs_count);
         break;
     }
 
@@ -264,9 +276,11 @@ typedef struct exp_handle_priv_s
 {
     unsigned int exps_count;
     unsigned int objs_count;
+    unsigned int strs_count;
 
     expression_t exps;
     object_t    *objs;
+    xstring_t   *strs;
 } *exp_handle_priv_t;
 
 static void
@@ -275,6 +289,10 @@ handle_free(object_t object)
     exp_handle_priv_t priv = (exp_handle_priv_t)object->external.priv;
     SEE_FREE(priv->exps);
     SEE_FREE(priv->objs);
+    int i;
+    for (i = 0; i < priv->strs_count; ++ i)
+        xstring_free(priv->strs[i]);
+    SEE_FREE(priv->strs);
     SEE_FREE(priv);
 }
 
@@ -330,7 +348,7 @@ scan_int(char *string, see_int_t *result)
 }
 
 static expression_t 
-expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_handle_priv_t priv)
+expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_handle_priv_t priv, external_constant_match_f cm)
 {
     expression_t result = priv->exps + (priv->exps_count ++);
     result->handle = handle;
@@ -345,19 +363,21 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         case SYMBOL_NULL:
             result->type = EXP_TYPE_CONSTANT;
             result->depth = 1;
+            result->constant.name = NULL;
             result->constant.value = OBJECT_NULL;
             break;
                 
         case SYMBOL_GENERAL:
-            result->type = EXP_TYPE_REF;
             result->depth = 1;
             if (node->header.priv == NULL)
             {
-                result->ref.parent_level = -1;
+                result->type = EXP_TYPE_LOAD_EXTERNAL;
+                result->load.name = priv->strs[priv->strs_count ++] = xstring_dup(node->symbol.str);
             }
             else
             {
-                result->ref  = *(scope_ref_t)node->header.priv;
+                result->type = EXP_TYPE_LOAD;
+                result->load.ref  = *(scope_ref_t)node->header.priv;
             }
             
             break;
@@ -382,14 +402,14 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
             if (o == NULL)
             {
                 /* Throw an external escape if not found */
-                result->type = EXP_TYPE_CONSTANT_EXTERNAL;
-                result->constant.name = priv->objs[priv->objs_count ++];
-                result->constant.name->string = xstring_dup(node->symbol.str);
-                OBJECT_TYPE_INIT(result->constant.name, OBJECT_TYPE_STRING);
+                result->constant.name = priv->strs[priv->strs_count ++] = xstring_dup(node->symbol.str);
+                if (cm != NULL) result->constant.value = o = cm(xstring_cstr(node->symbol.str), xstring_len(node->symbol.str));
+                result->type = o == NULL ? EXP_TYPE_CONSTANT_EXTERNAL : EXP_TYPE_CONSTANT;
             }
             else
             {
                 result->type = EXP_TYPE_CONSTANT;
+                result->constant.name = NULL;
                 result->constant.value = o;
             }
             
@@ -400,6 +420,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         {
             result->type = EXP_TYPE_CONSTANT;
             result->depth = 1;
+            result->constant.name = NULL;
             result->constant.value = priv->objs[priv->objs_count ++];
             result->constant.value->string = xstring_dup(node->symbol.str);
             OBJECT_TYPE_INIT(result->constant.value, OBJECT_TYPE_STRING);
@@ -422,7 +443,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         /* XXX */
         result->closure.inherit = 1;
         
-        result->closure.child = expression_from_ast_internal(heap, node->lambda.proc, handle, priv);
+        result->closure.child = expression_from_ast_internal(heap, node->lambda.proc, handle, priv, cm);
         result->closure.child->parent = result;
         result->closure.child->next = NULL;
         result->depth = 1;
@@ -436,7 +457,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         result->with.varc = node->with.varc;
         result->with.inherit = 1;
         
-        result->with.child = expression_from_ast_internal(heap, node->with.proc, handle, priv);
+        result->with.child = expression_from_ast_internal(heap, node->with.proc, handle, priv, cm);
         result->with.child->parent = result;
         result->with.child->next = NULL;
 
@@ -453,14 +474,14 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         result->type = EXP_TYPE_PROC;
         result->proc.toplevel = node->proc.toplevel;
         expression_t e = result->proc.child =
-            expression_from_ast_internal(heap, cur, handle, priv);
+            expression_from_ast_internal(heap, cur, handle, priv, cm);
         result->depth = e->depth;
 
         cur = cur->header.next;
         while (cur != node->proc.head)
         {
             e->parent = result;
-            e->next = expression_from_ast_internal(heap, cur, handle, priv);
+            e->next = expression_from_ast_internal(heap, cur, handle, priv, cm);
             e = e->next;
 
             if (result->depth < e->depth)
@@ -481,14 +502,14 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         
         result->type = EXP_TYPE_AND;
         expression_t e = result->and_exp.child =
-            expression_from_ast_internal(heap, cur, handle, priv);
+            expression_from_ast_internal(heap, cur, handle, priv, cm);
         result->depth = e->depth;
         
         cur = cur->header.next;
         while (cur != node->s_and.head)
         {
             e->parent = result;
-            e->next = expression_from_ast_internal(heap, cur, handle, priv);
+            e->next = expression_from_ast_internal(heap, cur, handle, priv, cm);
             e = e->next;
 
             if (result->depth < e->depth)
@@ -508,14 +529,14 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         
         result->type = EXP_TYPE_OR;
         expression_t e = result->or_exp.child =
-            expression_from_ast_internal(heap, cur, handle, priv);
+            expression_from_ast_internal(heap, cur, handle, priv, cm);
         result->depth = e->depth;
 
         cur = cur->header.next;
         while (cur != node->s_or.head)
         {
             e->parent = result;
-            e->next = expression_from_ast_internal(heap, cur, handle, priv);
+            e->next = expression_from_ast_internal(heap, cur, handle, priv, cm);
             e = e->next;
 
             if (result->depth < e->depth)
@@ -537,12 +558,12 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         result->type = EXP_TYPE_APPLY;
         result->apply.argc = node->apply.argc;
         result->apply.tail = node->apply.tail;
-        expression_t e = result->apply.child = expression_from_ast_internal(heap, node->apply.func, handle, priv);
+        expression_t e = result->apply.child = expression_from_ast_internal(heap, node->apply.func, handle, priv, cm);
         result->depth = e->depth;
         for (i = 0; i < node->apply.argc; ++ i)
         {
             e->parent = result;
-            e->next = expression_from_ast_internal(heap, node->apply.args[i], handle, priv);
+            e->next = expression_from_ast_internal(heap, node->apply.args[i], handle, priv, cm);
             e = e->next;
 
             if (result->depth < e->depth + i + 1)
@@ -558,11 +579,11 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
     {
         result->type = EXP_TYPE_COND;
         
-        result->cond.cd = expression_from_ast_internal(heap, node->cond.c, handle, priv);
+        result->cond.cd = expression_from_ast_internal(heap, node->cond.c, handle, priv, cm);
         result->cond.cd->parent = result;
         result->cond.cd->next = NULL;
         
-        result->cond.th = expression_from_ast_internal(heap, node->cond.t, handle, priv);
+        result->cond.th = expression_from_ast_internal(heap, node->cond.t, handle, priv, cm);
         result->cond.th->parent = result;
         result->cond.th->next = NULL;
 
@@ -571,7 +592,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 
         if (node->cond.e != NULL)
         {
-            result->cond.el = expression_from_ast_internal(heap, node->cond.e, handle, priv);
+            result->cond.el = expression_from_ast_internal(heap, node->cond.e, handle, priv, cm);
             result->cond.el->parent = result;
             result->cond.el->next = NULL;
 
@@ -585,20 +606,21 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
         
     case AST_SET:
     {
-        result->type = EXP_TYPE_SET;
-        result->set.exp = expression_from_ast_internal(heap, node->set.value, handle, priv);
-        result->set.exp->parent = result;
-        result->set.exp->next = NULL;
+        result->type = EXP_TYPE_STORE;
+        result->store.exp = expression_from_ast_internal(heap, node->set.value, handle, priv, cm);
+        result->store.exp->parent = result;
+        result->store.exp->next = NULL;
 
-        result->depth = result->set.exp->depth;
+        result->depth = result->store.exp->depth;
 
         if (node->header.priv == NULL)
         {
-            result->set.ref.parent_level = -1;
+            result->type = EXP_TYPE_STORE_EXTERNAL;
+            result->store.name = priv->strs[priv->strs_count ++] = xstring_dup(node->set.name);
         }
         else
         {
-            result->set.ref = *(scope_ref_t)node->header.priv;
+            result->store.ref = *(scope_ref_t)node->header.priv;
         }
 
         break;
@@ -608,7 +630,7 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
     {
         result->type = EXP_TYPE_CALLCC;
         result->callcc.tail = node->callcc.tail;
-        result->callcc.exp = expression_from_ast_internal(heap, node->callcc.node, handle, priv);
+        result->callcc.exp = expression_from_ast_internal(heap, node->callcc.node, handle, priv, cm);
         result->callcc.exp->parent = result;
         result->callcc.exp->next = NULL;
         result->depth = result->callcc.exp->depth + 1;
@@ -628,12 +650,13 @@ expression_from_ast_internal(heap_t heap, ast_node_t node, object_t handle, exp_
 }
 
 object_t
-handle_from_ast(heap_t heap, ast_node_t node)
+handle_from_ast(heap_t heap, ast_node_t node, external_constant_match_f cm)
 {
     unsigned int exps_size = 0;
     unsigned int objs_size = 0;
+    unsigned int strs_size = 0;
 
-    scan_ast(node, &exps_size, &objs_size);
+    scan_ast(node, &exps_size, &objs_size, &strs_size);
 
     object_t handle = heap_object_new(heap);
     if (handle == NULL) return NULL;
@@ -653,6 +676,16 @@ handle_from_ast(heap_t heap, ast_node_t node)
         return NULL;
     }
 
+    xstring_t *strs = (xstring_t *)SEE_MALLOC(sizeof(xstring_t) * strs_size);
+    if (strs == NULL)
+    {
+        heap_unprotect(heap, handle);
+        SEE_FREE(exps);
+        SEE_FREE(objs);
+        return NULL;
+    }
+        
+
     int i;
     for (i = 0; i != objs_size; ++ i)
     {
@@ -668,6 +701,7 @@ handle_from_ast(heap_t heap, ast_node_t node)
         heap_unprotect(heap, handle);
         SEE_FREE(objs);
         SEE_FREE(exps);
+        SEE_FREE(strs);
         return NULL;
     }
     
@@ -679,19 +713,22 @@ handle_from_ast(heap_t heap, ast_node_t node)
         heap_unprotect(heap, handle);
         SEE_FREE(objs);
         SEE_FREE(exps);
+        SEE_FREE(strs);
         return NULL;
     }
 
     /* Now no allocation failure is possible */
     priv->exps = exps;
     priv->objs = objs;
+    priv->strs = strs;
     priv->exps_count = 0;
     priv->objs_count = 0;
+    priv->strs_count = 0;
 
     handle->external.type = &handle_type;
     handle->external.priv = priv;
-    
-    expression_t result = expression_from_ast_internal(heap, node, handle, priv);
+
+    expression_t result = expression_from_ast_internal(heap, node, handle, priv, cm);
     result->parent = NULL;
     result->next = NULL;
     

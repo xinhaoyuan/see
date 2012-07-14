@@ -4,7 +4,7 @@
       (set! cdr (lambda (x) (x (lambda (a b) b))))
       (set! cons (lambda (a b) (lambda (c) (c a b))))
       (set! a (cons 1 2))
-      (display "HELLO WORLD" #answer-of-everything #answer-of-girls)
+      (display "HELLO WORLD")
       (display (#vec #not #t #f #nil ()))
       (display (car a)) (display (cdr a))
       )

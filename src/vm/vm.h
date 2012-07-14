@@ -5,11 +5,13 @@
 
 #include "../lib/xstring.h"
 
-#define APPLY_ERROR            -1
+#define APPLY_ERROR            -2
+#define APPLY_LIMIT_EXCEEDED   -1
 #define APPLY_EXIT              0
 #define APPLY_EXTERNAL_CALL     1
 #define APPLY_EXTERNAL_CONSTANT 2
-#define APPLY_LIMIT_EXCEEDED    3
+#define APPLY_EXTERNAL_LOAD     3
+#define APPLY_EXTERNAL_STORE    4
 
 int vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_flag);
 

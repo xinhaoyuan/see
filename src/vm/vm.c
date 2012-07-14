@@ -197,13 +197,15 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
         SEE_MEMCPY(ex->stack, func->continuation.stack, sizeof(object_t) * ex->stack_count);
     }
     break;
-        
+
+    case ENCODE_SUFFIX_SYMBOL:
     case OBJECT_TYPE_STRING:
     {
         if (*ex_argc < 1) return -ERROR_MEMORY;
         /* External calls */
         ex_args[0] = func;
-        heap_protect_from_gc(heap, func);
+        if (IS_OBJECT(func))
+            heap_protect_from_gc(heap, func);
                             
         int i;
         for (i = 0; i != argc; ++ i)
@@ -484,23 +486,24 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_f
                     ex->exp = exp_parent;
                     break;
 
-                case EXP_TYPE_SET:
+                case EXP_TYPE_STORE_EXTERNAL:
+                    ex->exp = exp_parent;
+                    return APPLY_EXTERNAL_STORE;
+
+                case EXP_TYPE_STORE:
                 {
 
-                    if (exp_parent->set.ref.parent_level != (unsigned int)-1)
+                    object_t e = ex->env;
+                    int i;
+                    for (i = 0; i != exp_parent->store.ref.parent_level; ++ i)
                     {
-                        object_t e = ex->env;
-                        int i;
-                        for (i = 0; i != exp_parent->set.ref.parent_level; ++ i)
-                        {
-                            if (e == OBJECT_NULL) break;
-                            e = e->environment.parent;
-                        }
-
-                        if (e != OBJECT_NULL && e->environment.length > exp_parent->set.ref.offset)
-                            SLOT_SET(e->environment.slot_entry[exp_parent->set.ref.offset], ex->value);
+                        if (e == OBJECT_NULL) break;
+                        e = e->environment.parent;
                     }
-                        
+                    
+                    if (e != OBJECT_NULL && e->environment.length > exp_parent->store.ref.offset)
+                        SLOT_SET(e->environment.slot_entry[exp_parent->store.ref.offset], ex->value);
+                
                     ex->value = OBJECT_NULL;
                     ex->exp = exp_parent;
                     
@@ -614,30 +617,34 @@ vm_run(heap_t heap, execution_t ex, int *ex_argc, object_t *ex_args, int *stop_f
                 return APPLY_EXTERNAL_CONSTANT;
             }
 
-            case EXP_TYPE_REF:
+            case EXP_TYPE_LOAD_EXTERNAL:
+            {
+                ex->to_push = 1;
+                return APPLY_EXTERNAL_LOAD;
+            }
+            
+            case EXP_TYPE_LOAD:
             {
                 ex->value = OBJECT_NULL;
-                if (ex->exp->ref.parent_level != (unsigned int)-1)
+                object_t e = ex->env;
+                int i;
+                for (i = 0; i != ex->exp->load.ref.parent_level; ++ i)
                 {
-                    object_t e = ex->env;
-                    int i;
-                    for (i = 0; i != ex->exp->ref.parent_level; ++ i)
-                    {
-                        if (e == OBJECT_NULL) break;
+                    if (e == OBJECT_NULL) break;
                         e = e->environment.parent;
-                    }
-
-                    if (e != OBJECT_NULL && e->environment.length > ex->exp->ref.offset)
-                        ex->value = SLOT_GET(e->environment.slot_entry[ex->exp->ref.offset]);
                 }
+                
+                if (e != OBJECT_NULL && e->environment.length > ex->exp->load.ref.offset)
+                    ex->value = SLOT_GET(e->environment.slot_entry[ex->exp->load.ref.offset]);
                 ex->to_push = 1;
                 
                 break;
             }
 
-            case EXP_TYPE_SET:
+            case EXP_TYPE_STORE_EXTERNAL:
+            case EXP_TYPE_STORE:
             {
-                ex->exp = ex->exp->set.exp;
+                ex->exp = ex->exp->store.exp;
                 break;
             }
 

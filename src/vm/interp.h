@@ -14,25 +14,25 @@
 typedef struct interp_s *interp_t;
 typedef struct interp_s
 {
-	heap_t      heap;
-	
-	execution_t ex;
-	object_t    prog;
-	object_t    ex_func;
-	int         ex_args_size;
-	object_t   *ex_args;
-	object_t    ret;
+    heap_t      heap;
+    
+    execution_t ex;
+    object_t    prog;
+    object_t    ex_func;
+    int         ex_args_size;
+    object_t   *ex_args;
+    object_t    ret;
 } interp_s;
 
-int         interp_initialize	(interp_t i, int ex_args_size);
-void        interp_uninitialize	(interp_t i);
-object_t    interp_eval			(interp_t i, stream_in_f f, void *data);
-execution_t interp_switch		(interp_t i, execution_t ex);
-object_t    interp_detach		(interp_t i);
-int         interp_apply		(interp_t i, object_t prog, int argc, object_t *args);
-int         interp_run			(interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args);
-object_t    interp_object_new	(interp_t i);
-void        interp_protect		(interp_t i, object_t object);
-void        interp_unprotect	(interp_t i, object_t object);
+int         interp_initialize   (interp_t i, int ex_args_size);
+void        interp_uninitialize (interp_t i);
+object_t    interp_eval         (interp_t i, stream_in_f f, void *data, external_constant_match_f cm);
+execution_t interp_switch       (interp_t i, execution_t ex);
+object_t    interp_detach       (interp_t i);
+int         interp_apply        (interp_t i, object_t prog, int argc, object_t *args);
+int         interp_run          (interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args);
+object_t    interp_object_new   (interp_t i);
+void        interp_protect      (interp_t i, object_t object);
+void        interp_unprotect    (interp_t i, object_t object);
 
 #endif

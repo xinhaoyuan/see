@@ -182,13 +182,15 @@ struct scope_ref_s
 #define EXP_TYPE_AND               0x02
 #define EXP_TYPE_OR                0x03
 #define EXP_TYPE_COND              0x04
-#define EXP_TYPE_SET               0x05
-#define EXP_TYPE_REF               0x06
-#define EXP_TYPE_CONSTANT          0x07
-#define EXP_TYPE_CONSTANT_EXTERNAL 0x08
-#define EXP_TYPE_CLOSURE           0x09
-#define EXP_TYPE_WITH              0x0a
-#define EXP_TYPE_CALLCC            0x0b
+#define EXP_TYPE_STORE             0x05
+#define EXP_TYPE_STORE_EXTERNAL    0x06
+#define EXP_TYPE_LOAD              0x07
+#define EXP_TYPE_LOAD_EXTERNAL     0x08
+#define EXP_TYPE_CONSTANT          0x09
+#define EXP_TYPE_CONSTANT_EXTERNAL 0x0a
+#define EXP_TYPE_CLOSURE           0x0b
+#define EXP_TYPE_WITH              0x0c
+#define EXP_TYPE_CALLCC            0x0d
 
 struct expression_s
 {
@@ -246,15 +248,26 @@ struct expression_s
 
         struct
         {
-            struct scope_ref_s ref;
+            union
+            {
+                struct scope_ref_s ref;
+                xstring_t          name;
+            };
             expression_t exp;
-        } set;
-
-        struct scope_ref_s ref;
+        } store;
 
         struct
         {
-            object_t name;
+            union
+            {
+                struct scope_ref_s ref;
+                xstring_t name;
+            };
+        } load;
+
+        struct
+        {
+            xstring_t name;
             object_t value;
         } constant;
     };
