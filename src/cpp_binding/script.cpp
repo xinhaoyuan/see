@@ -95,7 +95,7 @@ ScriptEngine::Execute(void)
         value = OBJECT_NULL;
         switch (r)
         {
-        case APPLY_EXTERNAL_CALL:
+        case VM_EXTERNAL_CALL:
         {
             if (OBJECT_TYPE(ex_args[0]) != OBJECT_TYPE_STRING) break;
             std::map<std::string, std::pair<external_function_t, void *> >::iterator
@@ -109,7 +109,7 @@ ScriptEngine::Execute(void)
             
             break;
         }
-        case APPLY_EXTERNAL_LOAD:
+        case VM_EXTERNAL_LOAD:
         {
             std::map<std::string, std::pair<external_var_op_t, void *> >::iterator
                 it = mExVarMap.find(xstring_cstr(mInterp.ex->exp->load.name));
@@ -117,7 +117,7 @@ ScriptEngine::Execute(void)
                 value = it->second.first(it->second.second, mInterp.ex->exp->load.name, NULL);
             break;
         }
-        case APPLY_EXTERNAL_STORE:
+        case VM_EXTERNAL_STORE:
         {
             std::map<std::string, std::pair<external_var_op_t, void *> >::iterator
                 it = mExVarMap.find(xstring_cstr(mInterp.ex->exp->store.name));
@@ -125,7 +125,7 @@ ScriptEngine::Execute(void)
                 value = it->second.first(it->second.second, mInterp.ex->exp->store.name, mInterp.ex->value);
             break;
         }
-        case APPLY_EXTERNAL_CONSTANT:
+        case VM_EXTERNAL_CONSTANT:
         {
             std::map<std::string, object_t >::iterator
                 it = mExConstMap.find(xstring_cstr(mInterp.ex->exp->constant.name));

@@ -113,7 +113,7 @@ int main(int argc, const char *args[])
             
             switch (r)
             {
-            case APPLY_EXTERNAL_CALL:
+            case VM_EXTERNAL_CALL:
                 ex_ret = OBJECT_NULL;
                 /* An example for handling external calls: display */
                 if (OBJECT_TYPE(ex_args[0]) == OBJECT_TYPE_STRING)
@@ -134,7 +134,7 @@ int main(int argc, const char *args[])
 
                 break;
 
-            case APPLY_EXTERNAL_CONSTANT:
+            case VM_EXTERNAL_CONSTANT:
                 /* An example for handling external constant. */
                 /* remember that we should never create objects from
                  * heap for the external constant */
@@ -144,7 +144,7 @@ int main(int argc, const char *args[])
                 
                 break;
 
-            case APPLY_EXTERNAL_LOAD:
+            case VM_EXTERNAL_LOAD:
                 /* Handling external load */
                 ex_ret = OBJECT_NULL;
                 if (xstring_equal_cstr(interp->ex->exp->load.name, "me", -1))
@@ -153,7 +153,7 @@ int main(int argc, const char *args[])
                 }
                 break;
 
-            case APPLY_EXTERNAL_STORE:
+            case VM_EXTERNAL_STORE:
                 /* Handler external store */
                 ex_ret = OBJECT_NULL;
                 if (xstring_equal_cstr(interp->ex->exp->store.name, "me", -1))

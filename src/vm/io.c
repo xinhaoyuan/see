@@ -1,5 +1,6 @@
 #include <config.h>
 #include "vm.h"
+#include "func.h"
 #include "io.h"
 #include "../as/dump.h"
 

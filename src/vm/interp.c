@@ -125,7 +125,7 @@ interp_run(interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
     if (i->ex == NULL)
     {
         *ex_argc = 0;
-        return APPLY_EXIT;
+        return VM_EXIT;
     }
 
     *ex_argc = i->ex_args_size;
@@ -135,17 +135,13 @@ interp_run(interp_t i, object_t ex_ret, int *ex_argc, object_t **ex_args)
     if (ex_ret != NULL && IS_OBJECT(ex_ret))
         heap_unprotect(i->heap, ex_ret);
     
-    int r = APPLY_LIMIT_EXCEEDED;
+    int r = VM_LIMIT_EXCEEDED;
     r = vm_run(i->heap, i->ex, ex_argc, i->ex_args, NULL);
 
-    switch (r)
+    if (r <= 0 && r != VM_LIMIT_EXCEEDED)
     {
-    case APPLY_ERROR:
-    case APPLY_EXIT:
         heap_execution_free(i->ex);
         i->ex = NULL;
-
-        break;
     }
 
     return r;
