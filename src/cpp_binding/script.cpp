@@ -60,10 +60,10 @@ object_t
 ScriptEngine::LoadScript(const char *name)
 {
     struct simple_stream s;
-    s.file = fopen(name, "r");
+    if ((s.file = fopen(name, "r")) == NULL) return NULL;
     s.buf  = BUF_EMPTY;
 
-    object_t result = interp_eval(&mInterp, (stream_in_f)simple_stream_in, &s);
+    object_t result = interp_eval(&mInterp, (stream_in_f)simple_stream_in, &s, NULL);
 
     fclose(s.file);
 
@@ -78,47 +78,61 @@ ScriptEngine::Apply(object_t object, std::vector<object_t> *args)
     
                         
 int
-ScriptEngine::Execute(object_t value, std::vector<object_t> *excall, bool escape)
+ScriptEngine::Execute(void)
 {
     int       ex_argc;
     object_t *ex_args;
+    object_t  value = OBJECT_NULL;
         
     int r;
     while (1)
     {
         r = interp_run(&mInterp, value, &ex_argc, &ex_args);
 
-        if (r != APPLY_EXTERNAL_CALL)
+        if (r <= 0)
             break;
-            
-        if (OBJECT_TYPE(ex_args[0]) != OBJECT_TYPE_STRING) break;
-        std::map<std::string, std::pair<external_function_t, void *> >::iterator
-            it = mExMap.find(xstring_cstr(ex_args[0]->string));
-        if (it == mExMap.end())
+
+        value = OBJECT_NULL;
+        switch (r)
         {
-            if (escape)
-            {
-                int i;
-                
-                excall->clear();
-                for (i = 0; i < ex_argc; ++ i) excall->push_back(ex_args[i]);
-                
-                break;
-            }
-            else
-            {
-                value = OBJECT_NULL;
-                int i;
-                for (i = 0; i != ex_argc; ++ i)
-                    interp_unprotect(&mInterp, ex_args[i]);
-            }
-        }
-        else
+        case APPLY_EXTERNAL_CALL:
         {
-            value = it->second.first(it->second.second, ex_argc, ex_args);
+            if (OBJECT_TYPE(ex_args[0]) != OBJECT_TYPE_STRING) break;
+            std::map<std::string, std::pair<external_function_t, void *> >::iterator
+                it = mExCallMap.find(xstring_cstr(ex_args[0]->string));
+            if (it != mExCallMap.end())
+                value = it->second.first(it->second.second, ex_argc, ex_args);
+
             int i;
             for (i = 0; i != ex_argc; ++ i)
                 interp_unprotect(&mInterp, ex_args[i]);
+            
+            break;
+        }
+        case APPLY_EXTERNAL_LOAD:
+        {
+            std::map<std::string, std::pair<external_var_op_t, void *> >::iterator
+                it = mExVarMap.find(xstring_cstr(mInterp.ex->exp->load.name));
+            if (it != mExVarMap.end())
+                value = it->second.first(it->second.second, mInterp.ex->exp->load.name, NULL);
+            break;
+        }
+        case APPLY_EXTERNAL_STORE:
+        {
+            std::map<std::string, std::pair<external_var_op_t, void *> >::iterator
+                it = mExVarMap.find(xstring_cstr(mInterp.ex->exp->store.name));
+            if (it != mExVarMap.end())
+                value = it->second.first(it->second.second, mInterp.ex->exp->store.name, mInterp.ex->value);
+            break;
+        }
+        case APPLY_EXTERNAL_CONSTANT:
+        {
+            std::map<std::string, object_t >::iterator
+                it = mExConstMap.find(xstring_cstr(mInterp.ex->exp->constant.name));
+            if (it != mExConstMap.end())
+                value = it->second;
+            break;
+        }
         }
     }
         
@@ -128,8 +142,8 @@ ScriptEngine::Execute(object_t value, std::vector<object_t> *excall, bool escape
 void
 ScriptEngine::ExternalFuncRegister(const char *name, external_function_t func, void *priv)
 {
-    mExMap[name].first  = func;
-    mExMap[name].second = priv;
+    mExCallMap[name].first  = func;
+    mExCallMap[name].second = priv;
 }
 
 object_t

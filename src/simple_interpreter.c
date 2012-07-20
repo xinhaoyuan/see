@@ -159,6 +159,9 @@ int main(int argc, const char *args[])
                 if (xstring_equal_cstr(interp->ex->exp->store.name, "me", -1))
                 {
                     fprintf(stderr, "Setting ``me'' is impossible\n");
+                    fprintf(stderr, "VALUE: \n");
+                    object_dump(interp->ex->value, stderr);
+                    fprintf(stderr, "\n");
                 }
                 break;
                 

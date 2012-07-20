@@ -14,7 +14,11 @@ class ScriptEngine
     interp_s mInterp;
     
     typedef object_t(*external_function_t)(void *priv, int argc, object_t *argv);
-    std::map<std::string, std::pair<external_function_t, void *> > mExMap;
+    typedef object_t(*external_var_op_t)(void *priv, xstring_t name, object_t store_value);
+    
+    std::map<std::string, std::pair<external_function_t, void *> > mExCallMap;
+    std::map<std::string, std::pair<external_var_op_t, void *> > mExVarMap;
+    std::map<std::string, object_t> mExConstMap;
         
 public:
     ScriptEngine(void);
@@ -22,7 +26,7 @@ public:
 
     object_t LoadScript(const char *name);
     int Apply(object_t object, std::vector<object_t> *args);
-    int Execute(object_t value, std::vector<object_t> *excall, bool escape = false);
+    int Execute(void);
         
     object_t ObjectNew(void);
     void     ObjectProtect(object_t object);
