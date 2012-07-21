@@ -16,14 +16,14 @@ bsr(unsigned int n)
     return result;
 }
 
-#define PUSH(x)                                     \
-    do {                                            \
-        if (ex->stack_count >= ex->stack_alloc)     \
-        {                                           \
-            ERROR("ERROR FOR PUSH\n");  \
-            exit(-1);                               \
-        }                                           \
-        ex->stack[ex->stack_count ++] = (x);        \
+#define PUSH(x)                                            \
+    do {                                                   \
+        if (ex->stack_count >= ex->stack_alloc)            \
+        {                                                  \
+            ERROR("FATAL ERROR IN PUSH, OUT OF RANGE\n");  \
+            exit(-1);                                      \
+        }                                                  \
+        ex->stack[ex->stack_count ++] = (x);               \
     } while (0)
 
 static int
