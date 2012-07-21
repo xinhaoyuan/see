@@ -2,7 +2,7 @@
 #include "../object.h"
 
 #include "vm.h"
-#include "func.h"
+#include "builtin.h"
 
 /* The internal function numbers */
 
@@ -228,14 +228,14 @@ apply_internal(heap_t heap, execution_t ex, unsigned int argc, int *ex_argc, obj
 
     case ENCODE_SUFFIX_INT:
     {
-        /* Internal func */
-        int func_id = INT_UNBOX(func);
+        /* Builtin functions */
+        int builtin_id = INT_UNBOX(func);
         object_t *args = ex->stack + ex->stack_count - argc - 1;
         int err = 0;
         
-        if (func_id < 0 || func_id > FUNC_MAX || see_internal_func[func_id] == NULL)
+        if (builtin_id < 0 || builtin_id > BUILTIN_MAX || see_internal_builtin[builtin_id] == NULL)
             ex->value = OBJECT_NULL;
-        else ex->value = see_internal_func[func_id](heap, argc + 1, args, &err);
+        else ex->value = see_internal_builtin[builtin_id](heap, argc + 1, args, &err);
 
         if (ex->value == NULL) return err;
 

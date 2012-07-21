@@ -1,6 +1,6 @@
 #include <config.h>
 #include "vm.h"
-#include "func.h"
+#include "builtin.h"
 #include "io.h"
 #include "../as/dump.h"
 
@@ -17,18 +17,18 @@ static struct constant_item_s constants[] =
     { .name = "#t",      .type = ENCODE_SUFFIX_SYMBOL, .value = OBJECT_ID_TRUE },
     { .name = "#f",      .type = ENCODE_SUFFIX_SYMBOL, .value = OBJECT_ID_FALSE },
     
-    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = FUNC_NOT },
-    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = FUNC_NOT },
-    { .name = "#car",    .type = ENCODE_SUFFIX_INT, .value = FUNC_CAR },
-    { .name = "#cdr",    .type = ENCODE_SUFFIX_INT, .value = FUNC_CDR },
-    { .name = "#cons",   .type = ENCODE_SUFFIX_INT, .value = FUNC_CONS },
-    { .name = "#add",    .type = ENCODE_SUFFIX_INT, .value = FUNC_ADD },
-    { .name = "#sub",    .type = ENCODE_SUFFIX_INT, .value = FUNC_SUB },
-    { .name = "#eq",     .type = ENCODE_SUFFIX_INT, .value = FUNC_EQ },
-    { .name = "#vec",    .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC },
-    { .name = "#veclen", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_LEN },
-    { .name = "#vecref", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_REF },
-    { .name = "#vecset", .type = ENCODE_SUFFIX_INT, .value = FUNC_VEC_SET },
+    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_NOT },
+    { .name = "#not",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_NOT },
+    { .name = "#car",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_CAR },
+    { .name = "#cdr",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_CDR },
+    { .name = "#cons",   .type = ENCODE_SUFFIX_INT, .value = BUILTIN_CONS },
+    { .name = "#add",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_ADD },
+    { .name = "#sub",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_SUB },
+    { .name = "#eq",     .type = ENCODE_SUFFIX_INT, .value = BUILTIN_EQ },
+    { .name = "#vec",    .type = ENCODE_SUFFIX_INT, .value = BUILTIN_VEC },
+    { .name = "#veclen", .type = ENCODE_SUFFIX_INT, .value = BUILTIN_VEC_LEN },
+    { .name = "#vecref", .type = ENCODE_SUFFIX_INT, .value = BUILTIN_VEC_REF },
+    { .name = "#vecset", .type = ENCODE_SUFFIX_INT, .value = BUILTIN_VEC_SET },
 };
 
 static object_t
