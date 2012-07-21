@@ -13,6 +13,22 @@ struct simple_stream
 };
 
 #define BUF_EMPTY (-2)
+#define BUF_ERROR (-3)
+
+void
+simple_stream_open(struct simple_stream *stream, FILE *file)
+{
+    stream->file = file;
+    stream->buf  = file == NULL ? BUF_ERROR : BUF_EMPTY;
+}
+
+void
+simple_stream_close(struct simple_stream *stream)
+{
+    if (stream->file != NULL) fclose(stream->file);
+    stream->file = NULL;
+    stream->buf  = BUF_ERROR;
+}
 
 int simple_stream_in(struct simple_stream *stream, int advance)
 {
@@ -24,7 +40,8 @@ int simple_stream_in(struct simple_stream *stream, int advance)
         else
         {
             r = stream->buf;
-            stream->buf = BUF_EMPTY;
+            if (stream->buf != BUF_ERROR)
+                stream->buf = BUF_EMPTY;
         }
     }
     else
@@ -60,26 +77,29 @@ int main(int argc, const char *args[])
     case 'i':
     case 's':
 
-        s.file = fopen(args[2], "r");
-        s.buf  = BUF_EMPTY;
+        simple_stream_open(&s, fopen(args[2], "r"));
 
         n = ast_simple_parse_char_stream((stream_in_f)simple_stream_in, &s);
 
-        fclose(s.file);
+        simple_stream_close(&s);
 
-        if (mode == 'i')
-        {
+        if (n != NULL)
+        {            
+
+            if (mode == 'i')
+            {
+                ast_dump(n, stdout);
+                ast_free(n);
+                
+                break;
+            }
+            
+            ast_syntax_parse(n, 0);
+            sematic_symref_analyse(n);
+            
             ast_dump(n, stdout);
             ast_free(n);
-            
-            break;
         }
-
-        ast_syntax_parse(n, 0);
-        sematic_symref_analyse(n);
-
-        ast_dump(n, stdout);
-        ast_free(n);
 
         break;
 
@@ -87,14 +107,13 @@ int main(int argc, const char *args[])
 
         interp_initialize(interp, 16);
         
-        s.file = fopen(args[2], "r");
-        s.buf  = BUF_EMPTY;
+        simple_stream_open(&s, fopen(args[2], "r"));
 
         prog = interp_eval(interp, (stream_in_f)simple_stream_in, &s, NULL);
 
-        fclose(s.file);
+        simple_stream_close(&s);
 
-        interp_apply(interp, prog, 0, NULL);
+        if (prog != NULL) interp_apply(interp, prog, 0, NULL);
         
         int       ex_argc = 0;
         object_t *ex_args;
