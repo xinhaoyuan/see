@@ -6,56 +6,7 @@
 
 /* This source file shows the usage of SEE interfaces */
 
-struct simple_stream
-{
-    FILE *file;
-    int   buf;
-};
-
-#define BUF_EMPTY (-2)
-#define BUF_ERROR (-3)
-
-void
-simple_stream_open(struct simple_stream *stream, FILE *file)
-{
-    stream->file = file;
-    stream->buf  = file == NULL ? BUF_ERROR : BUF_EMPTY;
-}
-
-void
-simple_stream_close(struct simple_stream *stream)
-{
-    if (stream->file != NULL) fclose(stream->file);
-    stream->file = NULL;
-    stream->buf  = BUF_ERROR;
-}
-
-int simple_stream_in(struct simple_stream *stream, int advance)
-{
-    int r;
-    if (advance)
-    {
-        if (stream->buf == BUF_EMPTY)
-            r = fgetc(stream->file);
-        else
-        {
-            r = stream->buf;
-            if (stream->buf != BUF_ERROR)
-                stream->buf = BUF_EMPTY;
-        }
-    }
-    else
-    {
-        if (stream->buf == BUF_EMPTY)
-        {
-            stream->buf = fgetc(stream->file);
-            if (stream->buf < 0) stream->buf = -1;
-        }
-        
-        r = stream->buf;
-    }
-    return r;
-}
+#include "simple_stream/simple_stream.h"
 
 int main(int argc, const char *args[])
 {
@@ -66,7 +17,7 @@ int main(int argc, const char *args[])
     }
 
     char mode = args[1][0];
-    struct simple_stream s;
+    simple_stream_s s;
     ast_node_t n;
     interp_s __interp;
     interp_t interp = &__interp;

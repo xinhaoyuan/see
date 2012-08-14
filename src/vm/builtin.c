@@ -21,15 +21,15 @@ BUILTIN(builtin_not)
 BUILTIN(builtin_car)
 {
     if (argc == 2 && OBJECT_TYPE(args[1]) == OBJECT_TYPE_PAIR)
-            return SLOT_GET(args[1]->pair.slot_car);
-        else return OBJECT_NULL;
+        return SLOT_GET(args[1]->pair.slot_car);
+    else return OBJECT_NULL;
 }
 
 BUILTIN(builtin_cdr)
 {
     if (argc == 2 && OBJECT_TYPE(args[1]) == OBJECT_TYPE_PAIR)
-            return SLOT_GET(args[1]->pair.slot_cdr);
-        else return OBJECT_NULL;
+        return SLOT_GET(args[1]->pair.slot_cdr);
+    else return OBJECT_NULL;
 }
 
 BUILTIN(builtin_cons)
@@ -67,7 +67,7 @@ BUILTIN(builtin_add)
 
 BUILTIN(builtin_sub)
 {
-    if (argc == 3)
+    if (argc == 3 && IS_INT(args[1]) && IS_INT(args[2]))
     {
         return INT_BOX(INT_UNBOX(args[1]) - INT_UNBOX(args[2]));
     }
